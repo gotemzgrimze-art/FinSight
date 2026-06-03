@@ -72,11 +72,13 @@ a {
 }
 
 .menu-wrap {
-	position: relative;
+	position: fixed;
+	top: 18px;
+	right: max(16px, calc((100vw - 1120px) / 2));
+	z-index: 30;
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
-	flex: 0 0 auto;
 }
 
 .menu-button {
@@ -103,7 +105,7 @@ a {
 	position: absolute;
 	top: calc(100% + 10px);
 	right: 0;
-	z-index: 20;
+	z-index: 31;
 	display: grid;
 	gap: 6px;
 	width: min(260px, calc(100vw - 32px));
@@ -179,6 +181,13 @@ a {
 	gap: 2px;
 }
 
+.profile-heading {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 18px;
+}
+
 .question-heading h2,
 .section-heading h2 {
 	font-size: clamp(1.45rem, 3.4vw, 2.35rem);
@@ -187,6 +196,201 @@ a {
 
 .compact-heading {
 	max-width: 620px;
+}
+
+.privacy-pill {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 34px;
+	padding: 0 12px;
+	border: 1px solid #9fdec6;
+	border-radius: 8px;
+	background: #e9f8f1;
+	color: #075f42;
+	font-size: 0.82rem;
+	font-weight: 900;
+	white-space: nowrap;
+}
+
+.profile-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+	gap: 18px;
+	align-items: start;
+}
+
+.profile-form {
+	display: grid;
+	gap: 14px;
+	padding: 22px;
+	overflow-x: auto;
+	border: 1px solid #dde3eb;
+	border-radius: 12px;
+	background: #ffffff;
+}
+
+.profile-sheet {
+	display: grid;
+	min-width: 720px;
+	border: 1px solid #d8dee8;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #ffffff;
+}
+
+.sheet-row {
+	display: grid;
+	grid-template-columns: 1.1fr 1fr 1fr 1fr;
+	align-items: center;
+	min-height: 52px;
+	border-bottom: 1px solid #e5eaf0;
+	color: #243044;
+}
+
+.sheet-row:last-child {
+	border-bottom: 0;
+}
+
+.sheet-row span {
+	min-width: 0;
+	padding: 10px 12px;
+	border-right: 1px solid #e5eaf0;
+	font-size: 0.92rem;
+	font-weight: 750;
+}
+
+.sheet-row span:last-child {
+	border-right: 0;
+}
+
+.sheet-head {
+	min-height: 42px;
+	background: #eef3f8;
+	color: #475467;
+}
+
+.sheet-head span {
+	font-size: 0.78rem;
+	font-weight: 900;
+	text-transform: uppercase;
+}
+
+.sheet-label {
+	color: #101828;
+	font-weight: 900;
+}
+
+.profile-form input {
+	width: 100%;
+	min-height: 46px;
+	padding: 0 12px;
+	border: 1px solid #cfd7e3;
+	border-radius: 8px;
+	background: #f8fafc;
+	color: #101828;
+	font-size: 1rem;
+	font-weight: 750;
+}
+
+.profile-form input:focus {
+	border-color: #11845b;
+	background: #ffffff;
+	outline: 3px solid rgba(17, 132, 91, 0.16);
+}
+
+.security-row {
+	display: grid;
+	grid-template-columns: minmax(220px, 0.5fr) minmax(0, 1fr);
+	align-items: end;
+	gap: 12px;
+	min-width: 720px;
+}
+
+.security-row label {
+	display: grid;
+	gap: 8px;
+	color: #243044;
+	font-size: 0.9rem;
+	font-weight: 850;
+}
+
+.security-row p {
+	min-height: 46px;
+	margin: 0;
+	padding: 13px 14px;
+	border: 1px solid #d8dee8;
+	border-radius: 8px;
+	background: #f8fafc;
+	color: #536174;
+	font-weight: 800;
+}
+
+.profile-actions {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+	min-width: 720px;
+}
+
+.primary-action,
+.secondary-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	padding: 0 16px;
+	border-radius: 8px;
+	font-weight: 900;
+}
+
+.primary-action {
+	border: 1px solid #11845b;
+	background: #11845b;
+	color: #ffffff;
+}
+
+.secondary-action {
+	border: 1px solid #d2d8e2;
+	background: #ffffff;
+	color: #243044;
+}
+
+.profile-summary {
+	display: grid;
+	gap: 10px;
+	padding: 18px;
+	border: 1px solid #d2d8e2;
+	border-radius: 12px;
+	background: #f8fafc;
+}
+
+.profile-summary div {
+	display: grid;
+	gap: 5px;
+	padding: 14px;
+	border: 1px solid #e0e6ee;
+	border-radius: 8px;
+	background: #ffffff;
+}
+
+.profile-summary span,
+.local-status {
+	margin: 0;
+	color: #536174;
+	font-size: 0.9rem;
+	font-weight: 800;
+}
+
+.profile-summary strong {
+	color: #101828;
+	font-size: clamp(1.45rem, 3vw, 2.2rem);
+	line-height: 1;
+}
+
+.local-status {
+	padding: 6px 2px 0;
 }
 
 .verdict-card {
@@ -571,6 +775,7 @@ details p {
 	.topbar {
 		align-items: flex-start;
 		flex-direction: row;
+		padding-right: 54px;
 	}
 
 	.topbar > div:first-child {
@@ -599,6 +804,7 @@ details p {
 
 	.metric-grid,
 	.metric-grid.three-up,
+	.profile-layout,
 	.split-layout,
 	.checklist {
 		grid-template-columns: 1fr;
@@ -616,6 +822,22 @@ details p {
 
 	.verdict-copy {
 		font-size: 1.22rem;
+	}
+
+	.profile-heading {
+		flex-direction: column;
+	}
+
+	.profile-form {
+		padding: 14px;
+	}
+
+	.security-row {
+		grid-template-columns: 1fr;
+	}
+
+	.profile-actions button {
+		width: 100%;
 	}
 
 	.metric-card {

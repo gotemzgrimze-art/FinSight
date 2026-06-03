@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+
 	type StatusTone = 'safe' | 'caution' | 'risky' | 'danger';
 
 	type Metric = {
@@ -21,20 +23,62 @@
 		tone: StatusTone;
 	};
 
-	type ServiceId = 'dashboard' | 'purchase' | 'review';
+	type ServiceId = 'dashboard' | 'profile' | 'purchase' | 'review';
 
 	type Service = {
 		id: ServiceId;
 		name: string;
 	};
 
+	type FinancialProfile = {
+		creditScore: string;
+		annualSalary: string;
+		monthlyDebt: string;
+		bankBalance: string;
+		monthlyExpenses: string;
+		savingsGoal: string;
+	};
+
+	type ProfileField = {
+		key: keyof FinancialProfile;
+		label: string;
+		placeholder: string;
+		impact: string;
+		note: string;
+	};
+
+	type SecurePayload = {
+		salt: string;
+		iv: string;
+		data: string;
+	};
+
 	let activeService = $state<ServiceId>('dashboard');
 	let menuOpen = $state(false);
+	let savedAt = $state('');
+	let profilePasscode = $state('');
+	let securityStatus = $state('No encrypted profile saved');
+	let hasSavedProfile = $state(false);
+
+	const blankProfile: FinancialProfile = {
+		creditScore: '',
+		annualSalary: '',
+		monthlyDebt: '',
+		bankBalance: '',
+		monthlyExpenses: '',
+		savingsGoal: ''
+	};
+
+	let profile = $state<FinancialProfile>({ ...blankProfile });
 
 	const services: Service[] = [
 		{
 			id: 'dashboard',
 			name: 'Financial Dashboard'
+		},
+		{
+			id: 'profile',
+			name: 'Local Profile'
 		},
 		{
 			id: 'purchase',
@@ -50,6 +94,183 @@
 		activeService = service;
 		menuOpen = false;
 	};
+
+	const profileStorageKey = 'finsight-local-profile';
+	const keyIterations = 250_000;
+
+	const profileFields: ProfileField[] = [
+		{
+			key: 'creditScore',
+			label: 'Credit score',
+			placeholder: '720',
+			impact: 'Loan readiness',
+			note: 'Range 300-850'
+		},
+		{
+			key: 'annualSalary',
+			label: 'Annual salary',
+			placeholder: '65000',
+			impact: 'Monthly income',
+			note: 'Before tax estimate'
+		},
+		{
+			key: 'monthlyDebt',
+			label: 'Monthly debts',
+			placeholder: '850',
+			impact: 'Debt ratio',
+			note: 'Loans and cards'
+		},
+		{
+			key: 'bankBalance',
+			label: 'Bank balance',
+			placeholder: '4250',
+			impact: 'Cash runway',
+			note: 'Checking and savings'
+		},
+		{
+			key: 'monthlyExpenses',
+			label: 'Monthly expenses',
+			placeholder: '2800',
+			impact: 'Money left',
+			note: 'Bills and spending'
+		},
+		{
+			key: 'savingsGoal',
+			label: 'Savings goal',
+			placeholder: '10000',
+			impact: 'Goal progress',
+			note: 'Current target'
+		}
+	];
+
+	const parseMoney = (value: string) => Number(value.replaceAll(',', '')) || 0;
+
+	const formatMoney = (value: number) =>
+		new Intl.NumberFormat('en-US', {
+			style: 'currency',
+			currency: 'USD',
+			maximumFractionDigits: 0
+		}).format(value);
+
+	const monthlyIncome = () => parseMoney(profile.annualSalary) / 12;
+	const monthlyLeft = () => monthlyIncome() - parseMoney(profile.monthlyDebt) - parseMoney(profile.monthlyExpenses);
+	const debtRatio = () => (monthlyIncome() > 0 ? (parseMoney(profile.monthlyDebt) / monthlyIncome()) * 100 : 0);
+	const runwayMonths = () =>
+		parseMoney(profile.monthlyExpenses) > 0
+			? parseMoney(profile.bankBalance) / parseMoney(profile.monthlyExpenses)
+			: 0;
+	const goalProgress = () =>
+		parseMoney(profile.savingsGoal) > 0
+			? Math.min((parseMoney(profile.bankBalance) / parseMoney(profile.savingsGoal)) * 100, 100)
+			: 0;
+
+	const updateProfile = (key: keyof FinancialProfile, value: string) => {
+		profile = { ...profile, [key]: value };
+	};
+
+	const encodeBytes = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+
+	const decodeBytes = (value: string) =>
+		Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
+
+	const toArrayBuffer = (bytes: Uint8Array) =>
+		bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+
+	const getProfileKey = async (passcode: string, salt: Uint8Array) => {
+		const sourceKey = await crypto.subtle.importKey(
+			'raw',
+			new TextEncoder().encode(passcode),
+			'PBKDF2',
+			false,
+			['deriveKey']
+		);
+
+		return crypto.subtle.deriveKey(
+			{
+				name: 'PBKDF2',
+				salt: toArrayBuffer(salt),
+				iterations: keyIterations,
+				hash: 'SHA-256'
+			},
+			sourceKey,
+			{ name: 'AES-GCM', length: 256 },
+			false,
+			['encrypt', 'decrypt']
+		);
+	};
+
+	const encryptProfile = async (passcode: string, value: FinancialProfile) => {
+		const salt = crypto.getRandomValues(new Uint8Array(16));
+		const iv = crypto.getRandomValues(new Uint8Array(12));
+		const key = await getProfileKey(passcode, salt);
+		const encryptedData = await crypto.subtle.encrypt(
+			{ name: 'AES-GCM', iv: toArrayBuffer(iv) },
+			key,
+			new TextEncoder().encode(JSON.stringify(value))
+		);
+
+		return {
+			salt: encodeBytes(salt),
+			iv: encodeBytes(iv),
+			data: encodeBytes(new Uint8Array(encryptedData))
+		};
+	};
+
+	const decryptProfile = async (passcode: string, payload: SecurePayload) => {
+		const salt = decodeBytes(payload.salt);
+		const iv = decodeBytes(payload.iv);
+		const key = await getProfileKey(passcode, salt);
+		const decryptedData = await crypto.subtle.decrypt(
+			{ name: 'AES-GCM', iv: toArrayBuffer(iv) },
+			key,
+			decodeBytes(payload.data)
+		);
+
+		return JSON.parse(new TextDecoder().decode(decryptedData)) as FinancialProfile;
+	};
+
+	const saveProfile = async () => {
+		if (profilePasscode.length < 8) {
+			securityStatus = 'Use at least 8 characters';
+			return;
+		}
+
+		localStorage.setItem(profileStorageKey, JSON.stringify(await encryptProfile(profilePasscode, profile)));
+		savedAt = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+		securityStatus = 'Encrypted on this device';
+		hasSavedProfile = true;
+	};
+
+	const unlockProfile = async () => {
+		const storedProfile = localStorage.getItem(profileStorageKey);
+
+		if (!storedProfile) {
+			securityStatus = 'No encrypted profile saved';
+			return;
+		}
+
+		try {
+			profile = { ...blankProfile, ...(await decryptProfile(profilePasscode, JSON.parse(storedProfile))) };
+			securityStatus = 'Unlocked for this session';
+			savedAt = 'Saved locally';
+		} catch {
+			securityStatus = 'Passcode did not unlock data';
+		}
+	};
+
+	const clearProfile = () => {
+		profile = { ...blankProfile };
+		savedAt = '';
+		profilePasscode = '';
+		securityStatus = 'No encrypted profile saved';
+		hasSavedProfile = false;
+		localStorage.removeItem(profileStorageKey);
+	};
+
+	onMount(() => {
+		hasSavedProfile = Boolean(localStorage.getItem(profileStorageKey));
+		securityStatus = hasSavedProfile ? 'Encrypted profile locked' : 'No encrypted profile saved';
+	});
 
 	const dashboardFacts: VerdictFact[] = [
 		{
@@ -259,6 +480,95 @@
 				<p>$7,200 saved toward a $10,000 target. At the current pace, this stays on track.</p>
 			</details>
 		</section>
+	</section>
+	{/if}
+
+	{#if activeService === 'profile'}
+	<section class="screen service-screen" aria-labelledby="profile-title">
+		<div class="section-heading profile-heading">
+			<div>
+				<p class="eyebrow">Local profile</p>
+				<h2 id="profile-title">Your financial data</h2>
+			</div>
+			<span class="privacy-pill">Device only</span>
+		</div>
+
+		<div class="profile-layout">
+			<form class="profile-form" onsubmit={(event) => event.preventDefault()}>
+				<div class="profile-sheet" role="table" aria-label="Editable local financial data">
+					<div class="sheet-row sheet-head" role="row">
+						<span role="columnheader">Data</span>
+						<span role="columnheader">Value</span>
+						<span role="columnheader">Used for</span>
+						<span role="columnheader">Note</span>
+					</div>
+					{#each profileFields as field}
+						<div class="sheet-row" role="row">
+							<span class="sheet-label" role="cell">{field.label}</span>
+							<span role="cell">
+								<input
+									aria-label={field.label}
+									type="number"
+									inputmode="decimal"
+									min="0"
+									placeholder={field.placeholder}
+									value={profile[field.key]}
+									oninput={(event) =>
+										updateProfile(field.key, event.currentTarget.value)}
+								/>
+							</span>
+							<span role="cell">{field.impact}</span>
+							<span role="cell">{field.note}</span>
+						</div>
+					{/each}
+				</div>
+
+				<div class="security-row">
+					<label>
+						<span>Local passcode</span>
+						<input
+							type="password"
+							autocomplete="current-password"
+							placeholder="8+ characters"
+							bind:value={profilePasscode}
+						/>
+					</label>
+					<p>{securityStatus}</p>
+				</div>
+
+				<div class="profile-actions">
+					{#if hasSavedProfile}
+						<button class="secondary-action" type="button" onclick={unlockProfile}>Unlock</button>
+					{/if}
+					<button class="primary-action" type="button" onclick={saveProfile}>Encrypt save</button>
+					<button class="secondary-action" type="button" onclick={clearProfile}>Clear data</button>
+				</div>
+			</form>
+
+			<aside class="profile-summary" aria-label="Local profile summary">
+				<div>
+					<span>Monthly income</span>
+					<strong>{formatMoney(monthlyIncome())}</strong>
+				</div>
+				<div>
+					<span>Money left</span>
+					<strong>{formatMoney(monthlyLeft())}</strong>
+				</div>
+				<div>
+					<span>Debt ratio</span>
+					<strong>{debtRatio().toFixed(1)}%</strong>
+				</div>
+				<div>
+					<span>Cash runway</span>
+					<strong>{runwayMonths().toFixed(1)} mo</strong>
+				</div>
+				<div>
+					<span>Goal progress</span>
+					<strong>{goalProgress().toFixed(0)}%</strong>
+				</div>
+				<p class="local-status">{savedAt || 'Not saved yet'}</p>
+			</aside>
+		</div>
 	</section>
 	{/if}
 
