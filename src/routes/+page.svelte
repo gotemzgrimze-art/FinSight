@@ -21,6 +21,36 @@
 		tone: StatusTone;
 	};
 
+	type ServiceId = 'dashboard' | 'purchase' | 'review';
+
+	type Service = {
+		id: ServiceId;
+		name: string;
+	};
+
+	let activeService = $state<ServiceId>('dashboard');
+	let menuOpen = $state(false);
+
+	const services: Service[] = [
+		{
+			id: 'dashboard',
+			name: 'Financial Dashboard'
+		},
+		{
+			id: 'purchase',
+			name: 'Purchase Check'
+		},
+		{
+			id: 'review',
+			name: 'Glance Review'
+		}
+	];
+
+	const selectService = (service: ServiceId) => {
+		activeService = service;
+		menuOpen = false;
+	};
+
 	const dashboardFacts: VerdictFact[] = [
 		{
 			value: '$4,250',
@@ -152,10 +182,37 @@
 			<p class="eyebrow">FinSight</p>
 			<h1>One answer per money question.</h1>
 		</div>
-		<a class="ghost-link" href="#buy-check">Check purchase</a>
+		<div class="menu-wrap">
+			<button
+				class="menu-button"
+				type="button"
+				aria-label="Open services menu"
+				aria-expanded={menuOpen}
+				aria-controls="service-menu"
+				onclick={() => (menuOpen = !menuOpen)}
+			>
+				<span></span>
+				<span></span>
+				<span></span>
+			</button>
+			{#if menuOpen}
+				<nav id="service-menu" class="service-menu" aria-label="Services">
+					{#each services as service}
+						<button
+							type="button"
+							class:active-service={activeService === service.id}
+							onclick={() => selectService(service.id)}
+						>
+							{service.name}
+						</button>
+					{/each}
+				</nav>
+			{/if}
+		</div>
 	</header>
 
-	<section class="screen" aria-labelledby="dashboard-title">
+	{#if activeService === 'dashboard'}
+	<section class="screen service-screen" aria-labelledby="dashboard-title">
 		<div class="question-heading compact-heading">
 			<p class="eyebrow">Dashboard</p>
 			<h2 id="dashboard-title">Am I financially okay right now?</h2>
@@ -203,8 +260,10 @@
 			</details>
 		</section>
 	</section>
+	{/if}
 
-	<section class="screen" id="buy-check" aria-labelledby="purchase-title">
+	{#if activeService === 'purchase'}
+	<section class="screen service-screen" aria-labelledby="purchase-title">
 		<div class="question-heading compact-heading">
 			<p class="eyebrow">Purchase check</p>
 			<h2 id="purchase-title">Should I buy this?</h2>
@@ -312,8 +371,10 @@
 			</section>
 		</div>
 	</section>
+	{/if}
 
-	<section class="screen review-screen" aria-labelledby="review-title">
+	{#if activeService === 'review'}
+	<section class="screen service-screen review-screen" aria-labelledby="review-title">
 		<div class="section-heading">
 			<p class="eyebrow">Internal review</p>
 			<h2 id="review-title">Glance score checklist</h2>
@@ -328,4 +389,5 @@
 			{/each}
 		</ul>
 	</section>
+	{/if}
 </main>
