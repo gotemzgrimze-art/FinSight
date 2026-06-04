@@ -74,11 +74,11 @@ a {
 .menu-wrap {
 	position: fixed;
 	top: 18px;
-	right: max(16px, calc((100vw - 1120px) / 2));
+	left: max(16px, calc((100vw - 1120px) / 2));
 	z-index: 30;
 	display: flex;
 	align-items: center;
-	justify-content: flex-end;
+	justify-content: flex-start;
 }
 
 .menu-button {
@@ -96,15 +96,15 @@ a {
 	display: block;
 	width: 26px;
 	height: 3px;
-	border-radius: 999px;
+	border: 1px solid rgba(16, 24, 40, 0.86);
+	border-radius: 2px;
 	background: #ffffff;
-	box-shadow: 0 1px 4px rgba(16, 24, 40, 0.75);
 }
 
 .service-menu {
 	position: absolute;
 	top: calc(100% + 10px);
-	right: 0;
+	left: 0;
 	z-index: 31;
 	display: grid;
 	gap: 6px;
@@ -843,7 +843,7 @@ details p {
 	.topbar {
 		align-items: flex-start;
 		flex-direction: row;
-		padding-right: 54px;
+		padding-left: 54px;
 	}
 
 	.topbar > div:first-child {
