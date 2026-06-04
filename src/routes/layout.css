@@ -299,6 +299,74 @@ a {
 	outline: 3px solid rgba(17, 132, 91, 0.16);
 }
 
+.purchase-input-panel {
+	display: grid;
+	grid-template-columns: minmax(0, 1.25fr) minmax(160px, 0.7fr) minmax(210px, 0.9fr);
+	gap: 12px;
+	padding: 18px;
+	border: 1px solid #dde3eb;
+	border-radius: 12px;
+	background: #ffffff;
+}
+
+.purchase-input-panel label {
+	display: grid;
+	gap: 8px;
+	min-width: 0;
+	color: #243044;
+	font-size: 0.9rem;
+	font-weight: 850;
+}
+
+.purchase-input-panel input,
+.purchase-input-panel select {
+	width: 100%;
+	min-height: 46px;
+	padding: 0 12px;
+	border: 1px solid #cfd7e3;
+	border-radius: 8px;
+	background: #f8fafc;
+	color: #101828;
+	font-size: 1rem;
+	font-weight: 750;
+}
+
+.purchase-input-panel input:focus,
+.purchase-input-panel select:focus {
+	border-color: #11845b;
+	background: #ffffff;
+	outline: 3px solid rgba(17, 132, 91, 0.16);
+}
+
+.purchase-status {
+	font-size: clamp(2.6rem, 7vw, 5.35rem);
+	line-height: 0.94;
+}
+
+.pros-cons-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 18px;
+}
+
+.decision-list {
+	display: grid;
+	gap: 10px;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+.decision-list li {
+	padding: 12px 14px;
+	border: 1px solid #e0e6ee;
+	border-radius: 8px;
+	background: #f8fafc;
+	color: #243044;
+	font-weight: 750;
+	line-height: 1.35;
+}
+
 .security-row {
 	display: grid;
 	grid-template-columns: minmax(220px, 0.5fr) minmax(0, 1fr);
@@ -805,6 +873,8 @@ details p {
 	.metric-grid,
 	.metric-grid.three-up,
 	.profile-layout,
+	.purchase-input-panel,
+	.pros-cons-grid,
 	.split-layout,
 	.checklist {
 		grid-template-columns: 1fr;
