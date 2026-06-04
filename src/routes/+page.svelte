@@ -47,6 +47,46 @@
 		note: string;
 	};
 
+	type ProductCategory =
+		| 'home-appliance'
+		| 'electronics'
+		| 'decorations'
+		| 'games'
+		| 'food'
+		| 'clothing'
+		| 'healthcare'
+		| 'transportation'
+		| 'education'
+		| 'furniture'
+		| 'subscription'
+		| 'gift'
+		| 'travel';
+
+	type ProductOption = {
+		id: ProductCategory;
+		name: string;
+		necessity: number;
+		lifespan: string;
+		risk: string;
+	};
+
+	type PurchaseInput = {
+		name: string;
+		cost: string;
+		category: ProductCategory;
+	};
+
+	type PurchaseAssessment = {
+		verdict: string;
+		tone: StatusTone;
+		necessity: string;
+		impact: string;
+		balanceAfter: string;
+		workCost: string;
+		pros: string[];
+		cons: string[];
+	};
+
 	type SecurePayload = {
 		salt: string;
 		iv: string;
@@ -59,6 +99,11 @@
 	let profilePasscode = $state('');
 	let securityStatus = $state('No encrypted profile saved');
 	let hasSavedProfile = $state(false);
+	let purchaseInput = $state<PurchaseInput>({
+		name: '',
+		cost: '',
+		category: 'electronics'
+	});
 
 	const blankProfile: FinancialProfile = {
 		creditScore: '',
@@ -97,6 +142,101 @@
 
 	const profileStorageKey = 'finsight-local-profile';
 	const keyIterations = 250_000;
+	const defaultHourlyIncome = 25.8;
+
+	const productOptions: ProductOption[] = [
+		{
+			id: 'home-appliance',
+			name: 'Home appliance',
+			necessity: 8,
+			lifespan: 'Long-term home use',
+			risk: 'Repair or replacement urgency can justify cost'
+		},
+		{
+			id: 'electronics',
+			name: 'Electronics',
+			necessity: 5,
+			lifespan: 'Useful, but upgrades lose value fast',
+			risk: 'Depreciates quickly'
+		},
+		{
+			id: 'decorations',
+			name: 'Decorations',
+			necessity: 2,
+			lifespan: 'Nice-to-have',
+			risk: 'Easy to overspend on nonessential upgrades'
+		},
+		{
+			id: 'games',
+			name: 'Games',
+			necessity: 2,
+			lifespan: 'Entertainment value',
+			risk: 'Best when paid from fun money'
+		},
+		{
+			id: 'food',
+			name: 'Food',
+			necessity: 9,
+			lifespan: 'Immediate need',
+			risk: 'Frequent dining can quietly drain cash'
+		},
+		{
+			id: 'clothing',
+			name: 'Clothing',
+			necessity: 6,
+			lifespan: 'Depends on actual need',
+			risk: 'Trendy items lose value fast'
+		},
+		{
+			id: 'healthcare',
+			name: 'Healthcare',
+			necessity: 10,
+			lifespan: 'Health and safety',
+			risk: 'Delaying can create larger costs'
+		},
+		{
+			id: 'transportation',
+			name: 'Transportation',
+			necessity: 8,
+			lifespan: 'Work and mobility',
+			risk: 'Maintenance and insurance can add up'
+		},
+		{
+			id: 'education',
+			name: 'Education',
+			necessity: 7,
+			lifespan: 'Skill-building',
+			risk: 'Value depends on follow-through'
+		},
+		{
+			id: 'furniture',
+			name: 'Furniture',
+			necessity: 5,
+			lifespan: 'Longer-term home use',
+			risk: 'Delivery and financing can raise cost'
+		},
+		{
+			id: 'subscription',
+			name: 'Subscription',
+			necessity: 3,
+			lifespan: 'Recurring cost',
+			risk: 'Small monthly charges stack up'
+		},
+		{
+			id: 'gift',
+			name: 'Gift',
+			necessity: 4,
+			lifespan: 'Relationship value',
+			risk: 'Set a limit before buying'
+		},
+		{
+			id: 'travel',
+			name: 'Travel',
+			necessity: 3,
+			lifespan: 'Experience value',
+			risk: 'Flights, food, and lodging expand the real cost'
+		}
+	];
 
 	const profileFields: ProfileField[] = [
 		{
@@ -152,6 +292,8 @@
 			maximumFractionDigits: 0
 		}).format(value);
 
+	const selectedProduct = () =>
+		productOptions.find((option) => option.id === purchaseInput.category) ?? productOptions[1];
 	const monthlyIncome = () => parseMoney(profile.annualSalary) / 12;
 	const monthlyLeft = () => monthlyIncome() - parseMoney(profile.monthlyDebt) - parseMoney(profile.monthlyExpenses);
 	const debtRatio = () => (monthlyIncome() > 0 ? (parseMoney(profile.monthlyDebt) / monthlyIncome()) * 100 : 0);
@@ -166,6 +308,74 @@
 
 	const updateProfile = (key: keyof FinancialProfile, value: string) => {
 		profile = { ...profile, [key]: value };
+	};
+
+	const updatePurchase = (key: keyof PurchaseInput, value: string) => {
+		purchaseInput = { ...purchaseInput, [key]: value };
+	};
+
+	const afterPurchaseBalance = () => parseMoney(profile.bankBalance) - parseMoney(purchaseInput.cost);
+	const safeMonthlyLeft = () => (monthlyIncome() > 0 ? monthlyLeft() : 870);
+	const hourlyIncome = () => (monthlyIncome() > 0 ? monthlyIncome() / 173 : defaultHourlyIncome);
+	const purchaseWorkHours = () =>
+		hourlyIncome() > 0 ? parseMoney(purchaseInput.cost) / hourlyIncome() : 0;
+
+	const assessPurchase = (): PurchaseAssessment => {
+		const itemName = purchaseInput.name.trim() || 'this purchase';
+		const cost = parseMoney(purchaseInput.cost);
+		const product = selectedProduct();
+		const balance = parseMoney(profile.bankBalance);
+		const balanceAfter = afterPurchaseBalance();
+		const leftThisMonth = safeMonthlyLeft();
+		const costShare = leftThisMonth > 0 ? cost / leftThisMonth : cost > 0 ? 2 : 0;
+		const cashShare = balance > 0 ? cost / balance : 0;
+		const needScore = product.necessity;
+		const highNecessity = needScore >= 8;
+		const mediumNecessity = needScore >= 5;
+		const hasCost = cost > 0;
+		const shouldAvoid = hasCost && (balanceAfter < 0 || costShare > 1.1 || (cashShare > 0.45 && !highNecessity));
+		const shouldWait =
+			hasCost && !shouldAvoid && (costShare > 0.45 || cashShare > 0.25 || (!mediumNecessity && costShare > 0.2));
+		const tone: StatusTone = shouldAvoid ? 'danger' : shouldWait ? 'caution' : 'safe';
+		const verdict = !hasCost
+			? 'Add the price'
+			: shouldAvoid
+				? 'Do not buy yet'
+				: shouldWait
+					? 'Wait or find cheaper'
+					: 'Buy is reasonable';
+		const necessity = highNecessity ? 'Necessary' : mediumNecessity ? 'Useful' : 'Optional';
+		const impact = !hasCost
+			? 'Enter a cost to calculate the impact.'
+			: balance
+				? `${itemName} would leave ${formatMoney(balanceAfter)} in your bank balance.`
+				: `${itemName} costs about ${purchaseWorkHours().toFixed(1)} work hours based on your income.`;
+
+		const pros = [
+			`${product.name} category: ${product.lifespan}.`,
+			highNecessity ? 'This category can protect health, work, home, or basic needs.' : 'You can delay it without major immediate risk.',
+			costShare <= 0.25 && hasCost ? 'It uses a manageable share of your monthly cushion.' : 'Comparing alternatives could lower the impact.'
+		];
+		const cons = [
+			product.risk,
+			hasCost ? `It costs about ${purchaseWorkHours().toFixed(1)} work hours.` : 'No price entered yet.',
+			balance && balanceAfter < 0
+				? 'It would push your current bank balance below zero.'
+				: costShare > 0.45
+					? 'It takes a large share of your available monthly money.'
+					: 'It still reduces cash that could go to debt, savings, or emergencies.'
+		];
+
+		return {
+			verdict,
+			tone,
+			necessity,
+			impact,
+			balanceAfter: hasCost && balance ? formatMoney(balanceAfter) : 'Needs profile',
+			workCost: hasCost ? `${purchaseWorkHours().toFixed(1)} hrs` : 'Enter cost',
+			pros,
+			cons
+		};
 	};
 
 	const encodeBytes = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -573,41 +783,100 @@
 	{/if}
 
 	{#if activeService === 'purchase'}
+	{@const purchaseAssessment = assessPurchase()}
 	<section class="screen service-screen" aria-labelledby="purchase-title">
 		<div class="question-heading compact-heading">
 			<p class="eyebrow">Purchase check</p>
 			<h2 id="purchase-title">Should I buy this?</h2>
 		</div>
 
-		<article class="verdict-card tone-caution">
+		<section class="purchase-input-panel" aria-label="Purchase details">
+			<label>
+				<span>What do you want to buy?</span>
+				<input
+					type="text"
+					placeholder="Laptop, couch, dinner, headphones"
+					value={purchaseInput.name}
+					oninput={(event) => updatePurchase('name', event.currentTarget.value)}
+				/>
+			</label>
+			<label>
+				<span>How much does it cost?</span>
+				<input
+					type="number"
+					inputmode="decimal"
+					min="0"
+					placeholder="1470"
+					value={purchaseInput.cost}
+					oninput={(event) => updatePurchase('cost', event.currentTarget.value)}
+				/>
+			</label>
+			<label>
+				<span>Product type</span>
+				<select
+					value={purchaseInput.category}
+					onchange={(event) => updatePurchase('category', event.currentTarget.value)}
+				>
+					{#each productOptions as option}
+						<option value={option.id}>{option.name}</option>
+					{/each}
+				</select>
+			</label>
+		</section>
+
+		<article class={`verdict-card tone-${purchaseAssessment.tone}`}>
 			<div class="verdict-main">
-				<p class="status-label">Caution</p>
-				<p class="verdict-copy">
-					You can afford it, but it delays your Japan trip.
-				</p>
+				<p class="status-label purchase-status">{purchaseAssessment.verdict}</p>
+				<p class="verdict-copy">{purchaseAssessment.impact}</p>
 				<div class="action-strip">
-					<span>Better move</span>
-					<strong>Wait 45 days</strong>
+					<span>Necessity</span>
+					<strong>{purchaseAssessment.necessity}</strong>
 				</div>
 			</div>
 			<div class="verdict-facts" aria-label="Purchase result summary">
-				{#each purchaseFacts as fact}
-					<div>
-						<strong>{fact.value}</strong>
-						<span>{fact.label}</span>
-					</div>
-				{/each}
+				<div>
+					<strong>{purchaseAssessment.workCost}</strong>
+					<span>work cost</span>
+				</div>
+				<div>
+					<strong>{purchaseAssessment.balanceAfter}</strong>
+					<span>balance after</span>
+				</div>
+				<div>
+					<strong>{selectedProduct().name}</strong>
+					<span>category</span>
+				</div>
 			</div>
 		</article>
 
-		<div class="metric-grid three-up" aria-label="Purchase impact">
-			{#each purchaseMetrics as metric}
-				<article class={`metric-card tone-${metric.tone ?? 'safe'}`}>
-					<strong>{metric.value}</strong>
-					<p>{metric.label}</p>
-					<span>{metric.context}</span>
-				</article>
-			{/each}
+		<div class="pros-cons-grid" aria-label="Purchase pros and cons">
+			<section class="details-panel">
+				<div class="panel-heading">
+					<div>
+						<p class="eyebrow">Pros</p>
+						<h3>What helps this purchase</h3>
+					</div>
+				</div>
+				<ul class="decision-list">
+					{#each purchaseAssessment.pros as pro}
+						<li>{pro}</li>
+					{/each}
+				</ul>
+			</section>
+
+			<section class="details-panel">
+				<div class="panel-heading">
+					<div>
+						<p class="eyebrow">Cons</p>
+						<h3>What to watch</h3>
+					</div>
+				</div>
+				<ul class="decision-list">
+					{#each purchaseAssessment.cons as con}
+						<li>{con}</li>
+					{/each}
+				</ul>
+			</section>
 		</div>
 
 		<section class="details-panel detail-section" aria-labelledby="alternatives-title">
