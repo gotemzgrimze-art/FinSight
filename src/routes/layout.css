@@ -71,9 +71,18 @@ a {
 	line-height: 1.02;
 }
 
+.disclaimer {
+	max-width: 620px;
+	margin: 10px 0 0;
+	color: #536174;
+	font-size: 0.95rem;
+	font-weight: 750;
+	line-height: 1.35;
+}
+
 .menu-wrap {
 	position: fixed;
-	top: 18px;
+	top: 52px;
 	left: max(16px, calc((100vw - 1120px) / 2));
 	z-index: 30;
 	display: flex;
@@ -241,7 +250,7 @@ a {
 
 .sheet-row {
 	display: grid;
-	grid-template-columns: 1.1fr 1fr 1fr 1fr;
+	grid-template-columns: 1.1fr 1fr 1fr;
 	align-items: center;
 	min-height: 52px;
 	border-bottom: 1px solid #e5eaf0;
@@ -293,6 +302,21 @@ a {
 	font-weight: 750;
 }
 
+.profile-form select,
+.editable-row input,
+.mini-grid input,
+.mini-grid select {
+	width: 100%;
+	min-height: 42px;
+	padding: 0 10px;
+	border: 1px solid #cfd7e3;
+	border-radius: 8px;
+	background: #f8fafc;
+	color: #101828;
+	font-size: 0.95rem;
+	font-weight: 750;
+}
+
 .profile-form input:focus {
 	border-color: #11845b;
 	background: #ffffff;
@@ -301,7 +325,8 @@ a {
 
 .purchase-input-panel {
 	display: grid;
-	grid-template-columns: minmax(0, 1.25fr) minmax(160px, 0.7fr) minmax(210px, 0.9fr);
+	grid-template-columns: minmax(0, 1.25fr) minmax(160px, 0.7fr) minmax(210px, 0.9fr) auto;
+	align-items: end;
 	gap: 12px;
 	padding: 18px;
 	border: 1px solid #dde3eb;
@@ -417,6 +442,13 @@ a {
 	border: 1px solid #11845b;
 	background: #11845b;
 	color: #ffffff;
+}
+
+.primary-action:disabled {
+	border-color: #cfd7e3;
+	background: #e5eaf0;
+	color: #647184;
+	cursor: not-allowed;
 }
 
 .secondary-action {
@@ -715,6 +747,21 @@ a {
 	font-size: 1rem;
 }
 
+.editable-row {
+	grid-template-columns: 1fr 0.8fr 0.8fr 0.65fr 0.85fr;
+}
+
+.text-action {
+	margin-left: 8px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: #536174;
+	font-size: 0.82rem;
+	font-weight: 850;
+	text-decoration: underline;
+}
+
 .split-layout {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
@@ -772,6 +819,86 @@ details p {
 	color: #536174;
 	font-size: 1rem;
 	line-height: 1.45;
+}
+
+.notice-panel {
+	margin-top: 14px;
+	padding: 14px 16px;
+	border: 1px solid #f3c674;
+	border-radius: 10px;
+	background: #fff5df;
+	color: #8a4d00;
+	font-weight: 850;
+}
+
+.tight-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.tight-heading h3 {
+	margin: 0;
+	color: #101828;
+	font-size: 1.2rem;
+	line-height: 1.1;
+}
+
+.stack-list {
+	display: grid;
+	gap: 12px;
+}
+
+.mini-grid {
+	display: grid;
+	grid-template-columns: minmax(150px, 1fr) repeat(3, minmax(100px, 0.75fr)) auto;
+	align-items: center;
+	gap: 10px;
+}
+
+.allowance-row {
+	display: grid;
+	gap: 10px;
+	padding: 12px;
+	border: 1px solid #e0e6ee;
+	border-radius: 10px;
+	background: #f8fafc;
+}
+
+.chart-line {
+	overflow: hidden;
+	height: 12px;
+	border-radius: 999px;
+	background: #d8dee8;
+}
+
+.chart-fill {
+	height: 100%;
+	border-radius: inherit;
+	background: #11845b;
+}
+
+.segmented-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.segmented-actions button {
+	min-height: 38px;
+	padding: 0 12px;
+	border: 1px solid #d2d8e2;
+	border-radius: 8px;
+	background: #ffffff;
+	color: #243044;
+	font-weight: 850;
+}
+
+.segmented-actions .active-service {
+	border-color: #9fdec6;
+	background: #e9f8f1;
+	color: #075f42;
 }
 
 details {
@@ -834,6 +961,38 @@ details p {
 	text-transform: uppercase;
 }
 
+.overview-list li {
+	display: grid;
+	align-content: start;
+	gap: 8px;
+	min-height: 132px;
+}
+
+.overview-list span {
+	display: inline-flex;
+	place-items: unset;
+	flex: none;
+	width: fit-content;
+	height: auto;
+	min-height: 28px;
+	padding: 0 10px;
+	border-radius: 8px;
+	font-size: 0.72rem;
+}
+
+.overview-list strong {
+	color: #101828;
+	font-size: clamp(1.35rem, 3vw, 2rem);
+	line-height: 1;
+}
+
+.overview-list p {
+	margin: 0;
+	color: #536174;
+	font-weight: 750;
+	line-height: 1.35;
+}
+
 @media (max-width: 860px) {
 	.app-shell {
 		width: min(100% - 24px, 680px);
@@ -876,7 +1035,12 @@ details p {
 	.purchase-input-panel,
 	.pros-cons-grid,
 	.split-layout,
-	.checklist {
+	.checklist,
+	.mini-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.editable-row {
 		grid-template-columns: 1fr;
 	}
 }
