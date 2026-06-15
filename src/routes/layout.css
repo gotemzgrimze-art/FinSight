@@ -328,13 +328,11 @@ a {
 	grid-template-columns: minmax(0, 1.25fr) minmax(160px, 0.7fr) minmax(210px, 0.9fr) auto;
 	align-items: end;
 	gap: 12px;
-	padding: 18px;
-	border: 1px solid #dde3eb;
-	border-radius: 12px;
-	background: #ffffff;
+	padding: 0;
 }
 
-.purchase-input-panel label {
+.purchase-input-panel label,
+.assumption-grid label {
 	display: grid;
 	gap: 8px;
 	min-width: 0;
@@ -344,7 +342,8 @@ a {
 }
 
 .purchase-input-panel input,
-.purchase-input-panel select {
+.purchase-input-panel select,
+.assumption-grid input {
 	width: 100%;
 	min-height: 46px;
 	padding: 0 12px;
@@ -357,10 +356,23 @@ a {
 }
 
 .purchase-input-panel input:focus,
-.purchase-input-panel select:focus {
+.purchase-input-panel select:focus,
+.assumption-grid input:focus {
 	border-color: #11845b;
 	background: #ffffff;
 	outline: 3px solid rgba(17, 132, 91, 0.16);
+}
+
+.purchase-panel {
+	gap: 14px;
+}
+
+.assumption-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	padding-top: 14px;
+	border-top: 1px solid #e5eaf0;
 }
 
 .purchase-status {
@@ -390,6 +402,14 @@ a {
 	color: #243044;
 	font-weight: 750;
 	line-height: 1.35;
+}
+
+.compact-list {
+	gap: 8px;
+}
+
+.compact-list li {
+	padding: 10px 12px;
 }
 
 .security-row {
@@ -718,7 +738,7 @@ a {
 
 .table-row {
 	display: grid;
-	grid-template-columns: 1.15fr 1fr 0.85fr 0.85fr;
+	grid-template-columns: 1.05fr 1fr 0.75fr 0.85fr 0.9fr;
 	align-items: center;
 	gap: 12px;
 	padding: 16px 0;
@@ -829,6 +849,22 @@ details p {
 	background: #fff5df;
 	color: #8a4d00;
 	font-weight: 850;
+}
+
+.result-disclaimer,
+.app-footer {
+	margin: 0;
+	color: #647184;
+	font-size: 0.9rem;
+	font-weight: 750;
+	line-height: 1.45;
+}
+
+.app-footer {
+	margin-top: 22px;
+	padding-top: 18px;
+	border-top: 1px solid #dde3eb;
+	text-align: center;
 }
 
 .tight-heading {
@@ -1033,6 +1069,7 @@ details p {
 	.metric-grid.three-up,
 	.profile-layout,
 	.purchase-input-panel,
+	.assumption-grid,
 	.pros-cons-grid,
 	.split-layout,
 	.checklist,
@@ -1090,7 +1127,8 @@ details p {
 
 	.table-row span:nth-child(2)::before,
 	.table-row span:nth-child(3)::before,
-	.table-row span:nth-child(4)::before {
+	.table-row span:nth-child(4)::before,
+	.table-row span:nth-child(5)::before {
 		display: block;
 		margin-bottom: 3px;
 		color: #647184;
@@ -1108,6 +1146,10 @@ details p {
 	}
 
 	.table-row span:nth-child(4)::before {
+		content: 'Goal delay';
+	}
+
+	.table-row span:nth-child(5)::before {
 		content: 'Verdict';
 	}
 }

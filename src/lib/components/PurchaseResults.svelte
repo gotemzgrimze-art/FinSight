@@ -14,6 +14,11 @@
 	const currentBarHeight = $derived(
 		assessment ? Math.max(48, Math.round((assessment.principal / Math.max(assessment.futureAmount, 1)) * 154)) : 48
 	);
+	const preservedCashLabel = $derived(
+		assessment
+			? (assessment.alternatives[assessment.alternatives.length - 1]?.result ?? '').replace(' preserved', '')
+			: ''
+	);
 </script>
 
 {#if assessment}
@@ -85,6 +90,7 @@
 				<span role="columnheader">Option</span>
 				<span role="columnheader">Result</span>
 				<span role="columnheader">Time cost</span>
+				<span role="columnheader">Goal delay</span>
 				<span role="columnheader">Verdict</span>
 			</div>
 			{#each assessment.alternatives as scenario}
@@ -92,10 +98,29 @@
 					<span class="option-cell" role="cell">{scenario.option}</span>
 					<span role="cell">{scenario.result}</span>
 					<span role="cell">{scenario.timeCost}</span>
+					<span role="cell">{scenario.goalDelay}</span>
 					<span role="cell" class={`pill tone-${scenario.tone}`}>{scenario.verdict}</span>
 				</div>
 			{/each}
 		</div>
+	</section>
+
+	<section class="details-panel detail-section" aria-labelledby="goal-delay-title">
+		<div class="panel-heading">
+			<div>
+				<p class="eyebrow">Goal delay</p>
+				<h3 id="goal-delay-title">What this purchase delays</h3>
+			</div>
+		</div>
+		{#if assessment.goalDelays.length > 0}
+			<ul class="decision-list compact-list">
+				{#each assessment.goalDelays as delay}
+					<li>{delay.goalName} delayed by {delay.label}</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="short-note">Add a savings goal with a monthly contribution to see delay impact.</p>
+		{/if}
 	</section>
 
 	{#if showInvestment}
@@ -110,16 +135,18 @@
 				<div class="simple-chart" aria-label="Investment opportunity cost">
 				<div class="bar current" style={`height: ${currentBarHeight}px`}>
 					<small>Today</small>
-					<span>{assessment.alternatives[3]?.result.replace(' preserved', '')}</span>
+					<span>{preservedCashLabel}</span>
 				</div>
 				<div class="bar future" style="height: 154px">
-					<small>15 years</small>
+					<small>{assessment.investmentYears} years</small>
 					<span>{assessment.futureValue}</span>
 				</div>
 			</div>
 			<p class="short-note">Skipping could add about {assessment.opportunityGain} before taxes and inflation.</p>
 		</section>
 	{/if}
+
+	<p class="result-disclaimer">FinSight provides educational planning tools, not financial advice.</p>
 {:else}
 	<section class="details-panel">
 		<p class="short-note">Enter a purchase and run a check to see a verdict, alternatives, and dynamic impact.</p>

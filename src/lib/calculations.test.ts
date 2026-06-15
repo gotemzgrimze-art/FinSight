@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
 	calculateAffordabilityVerdict,
+	calculateAllowanceRemaining,
+	calculateAllowanceUsagePercent,
 	calculateDebtPayoffMonths,
 	calculateDebtRatio,
 	calculateFutureValue,
+	calculateGoalDelayMonths,
+	calculateGoalDelaysForPurchase,
 	calculateMonthlyIncome,
 	calculateMonthlyLeftover,
 	calculatePurchaseWorkHours,
 	calculateRunwayMonths,
+	calculateSafeDailyAllowanceSpend,
 	calculateSafeDailySpend,
 	parseMoney
 } from '$lib/calculations';
@@ -69,8 +74,9 @@ describe('calculations', () => {
 		);
 
 		expect(assessment.verdict).toMatch(/Buy|Wait|Do not/);
-		expect(assessment.alternatives).toHaveLength(4);
+		expect(assessment.alternatives).toHaveLength(6);
 		expect(assessment.futureValue).toMatch(/^\$/);
+		expect(assessment.goalDelays.length).toBeGreaterThan(0);
 	});
 
 	it('calculates safe daily spend', () => {
@@ -95,6 +101,75 @@ describe('calculations', () => {
 
 	it('calculates debt payoff months', () => {
 		expect(calculateDebtPayoffMonths(debts[0])).toBe(12);
+	});
+
+	it('calculates goal delay in months and weeks', () => {
+		const delay = calculateGoalDelayMonths(1000, 500);
+
+		expect(delay.months).toBe(2);
+		expect(delay.weeks).toBe(9);
+		expect(delay.label).toBe('2 months');
+	});
+
+	it('returns no active contribution for zero monthly contribution', () => {
+		const delay = calculateGoalDelayMonths(1000, 0);
+
+		expect(delay.months).toBeNull();
+		expect(delay.weeks).toBeNull();
+		expect(delay.label).toBe('No active contribution');
+	});
+
+	it('calculates goal delays for every purchase goal', () => {
+		const delays = calculateGoalDelaysForPurchase(500, [
+			{
+				id: 'goal-1',
+				name: 'Trip',
+				targetAmount: '3000',
+				currentAmount: '1000',
+				monthlyContribution: '250'
+			}
+		]);
+
+		expect(delays[0].goalName).toBe('Trip');
+		expect(delays[0].label).toBe('2 months');
+	});
+
+	it('calculates allowance remaining', () => {
+		expect(calculateAllowanceRemaining('400', '125')).toBe(275);
+		expect(calculateAllowanceRemaining('100', '150')).toBe(0);
+	});
+
+	it('calculates allowance usage percent', () => {
+		expect(calculateAllowanceUsagePercent('400', '100')).toBe(25);
+		expect(calculateAllowanceUsagePercent('100', '150')).toBe(100);
+	});
+
+	it('calculates safe daily allowance spend', () => {
+		expect(calculateSafeDailyAllowanceSpend(140, 7)).toBe(20);
+	});
+
+	it('calculates future value with a custom return rate', () => {
+		expect(calculateFutureValue(1500, 0.085, 15)).toBeCloseTo(5099.92, 1);
+	});
+
+	it('handles affordability verdict edge cases', () => {
+		const purchase: PurchaseInput = {
+			name: 'Decor',
+			cost: '10000',
+			category: 'decorations'
+		};
+		const assessment = calculateAffordabilityVerdict(
+			{ ...demoProfile, bankBalance: '2000' },
+			purchase,
+			productOptions.find((option) => option.id === 'decorations') ?? productOptions[0]
+		);
+
+		expect(assessment.verdict).toBe('Do not buy yet');
+		expect(assessment.tone).toBe('danger');
+	});
+
+	it('rejects negative purchase prices', () => {
+		expect(() => calculatePurchaseWorkHours('-100', '60000', '200')).toThrow('cannot be negative');
 	});
 
 	it('rejects invalid money input', () => {

@@ -38,6 +38,66 @@ export const defaultSubscriptionState: SubscriptionState = {
 	isStudentVerified: false
 };
 
+const subscriptionStorageKey = 'finsight-subscription-state';
+
+const currentResetMonth = (): string => new Date().toISOString().slice(0, 7);
+
+type StoredSubscriptionState = SubscriptionState & {
+	lastResetMonth: string;
+};
+
+const normalizeSubscriptionState = (state: StoredSubscriptionState): StoredSubscriptionState => {
+	const resetMonth = currentResetMonth();
+	if (state.lastResetMonth !== resetMonth) {
+		return {
+			...state,
+			purchaseChecksUsedThisMonth: 0,
+			lastResetMonth: resetMonth
+		};
+	}
+	return state;
+};
+
+export const loadSubscriptionState = (): SubscriptionState => {
+	if (typeof localStorage === 'undefined') return { ...defaultSubscriptionState };
+
+	const raw = localStorage.getItem(subscriptionStorageKey);
+	if (!raw) return { ...defaultSubscriptionState };
+
+	try {
+		const parsed = JSON.parse(raw) as Partial<StoredSubscriptionState>;
+		const tier: SubscriptionTier =
+			parsed.tier === 'premium' || parsed.tier === 'student' ? parsed.tier : 'free';
+		const purchaseChecksUsedThisMonth = Number(parsed.purchaseChecksUsedThisMonth ?? 0);
+		const normalized = normalizeSubscriptionState({
+			tier,
+			purchaseChecksUsedThisMonth: Number.isFinite(purchaseChecksUsedThisMonth)
+				? Math.max(0, purchaseChecksUsedThisMonth)
+				: 0,
+			isStudentVerified: Boolean(parsed.isStudentVerified),
+			lastResetMonth: parsed.lastResetMonth ?? currentResetMonth()
+		});
+		saveSubscriptionState(normalized);
+		return {
+			tier: normalized.tier,
+			purchaseChecksUsedThisMonth: normalized.purchaseChecksUsedThisMonth,
+			isStudentVerified: normalized.isStudentVerified
+		};
+	} catch {
+		return { ...defaultSubscriptionState };
+	}
+};
+
+export const saveSubscriptionState = (state: SubscriptionState): void => {
+	if (typeof localStorage === 'undefined') return;
+
+	const stored: StoredSubscriptionState = {
+		...state,
+		lastResetMonth: currentResetMonth()
+	};
+	localStorage.setItem(subscriptionStorageKey, JSON.stringify(stored));
+};
+
 export const getSubscriptionLimits = (state: SubscriptionState): SubscriptionLimits =>
 	subscriptionLimits[state.tier];
 

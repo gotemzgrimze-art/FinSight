@@ -11,7 +11,9 @@
 	import StudentDiscount from '$lib/components/StudentDiscount.svelte';
 	import {
 		calculateAffordabilityVerdict,
+		calculateAllowanceRemaining,
 		calculateGoalProgress,
+		calculateMonthlyDebtPayment,
 		optionalMoney,
 		parseMoney,
 		parsePercentage
@@ -23,6 +25,7 @@
 		FinancialProfile,
 		Goal,
 		PurchaseAssessment,
+		PurchaseAssessmentOptions,
 		PurchaseInput,
 		SubscriptionTier
 	} from '$lib/models';
@@ -36,7 +39,9 @@
 		canAddGoal,
 		canRunPurchaseCheck,
 		defaultSubscriptionState,
-		getSubscriptionLimits
+		getSubscriptionLimits,
+		loadSubscriptionState,
+		saveSubscriptionState
 	} from '$lib/subscription';
 
 	type ServiceId = 'dashboard' | 'profile' | 'purchase' | 'review';
@@ -53,6 +58,11 @@
 		name: '',
 		cost: '',
 		category: 'electronics'
+	});
+	let purchaseOptions = $state<Required<PurchaseAssessmentOptions>>({
+		waitDays: 45,
+		cheaperAlternativePercentage: 0.72,
+		investmentYears: 15
 	});
 	let purchaseAssessment = $state<PurchaseAssessment | null>(null);
 	let profilePasscode = $state('');
@@ -74,6 +84,11 @@
 	);
 	const subscriptionLimits = $derived(getSubscriptionLimits(subscription));
 	const purchaseCheckAllowed = $derived(canRunPurchaseCheck(subscription));
+
+	const setSubscriptionState = (nextSubscription: typeof subscription) => {
+		subscription = nextSubscription;
+		saveSubscriptionState(nextSubscription);
+	};
 
 	const selectService = (service: ServiceId) => {
 		activeService = service;
@@ -100,6 +115,16 @@
 			calculateGoalProgress(goal);
 			const contribution = optionalMoney(goal.monthlyContribution, `${goal.name} monthly contribution`);
 			if (contribution < 0) throw new Error('monthly contribution cannot be negative');
+		}
+
+		calculateMonthlyDebtPayment(profile.debts);
+		for (const debt of profile.debts) {
+			optionalMoney(debt.balance, `${debt.name} balance`);
+			parsePercentage(debt.annualInterestRate, `${debt.name} interest rate`);
+		}
+
+		for (const allowance of profile.allowances) {
+			calculateAllowanceRemaining(allowance.limit, allowance.spent);
 		}
 	};
 
@@ -187,6 +212,11 @@
 		purchaseInput = { ...purchaseInput, [key]: value };
 	};
 
+	const updatePurchaseOption = (key: keyof PurchaseAssessmentOptions, value: number) => {
+		const nextValue = Number.isFinite(value) && value > 0 ? value : purchaseOptions[key];
+		purchaseOptions = { ...purchaseOptions, [key]: nextValue };
+	};
+
 	const runPurchaseCheck = () => {
 		try {
 			validateProfile();
@@ -196,11 +226,11 @@
 				return;
 			}
 
-			purchaseAssessment = calculateAffordabilityVerdict(profile, purchaseInput, selectedProduct);
-			subscription = {
+			purchaseAssessment = calculateAffordabilityVerdict(profile, purchaseInput, selectedProduct, purchaseOptions);
+			setSubscriptionState({
 				...subscription,
 				purchaseChecksUsedThisMonth: subscription.purchaseChecksUsedThisMonth + 1
-			};
+			});
 			validationMessage = '';
 		} catch (error) {
 			purchaseAssessment = null;
@@ -243,24 +273,25 @@
 	};
 
 	const setTier = (tier: SubscriptionTier) => {
-		subscription = {
+		setSubscriptionState({
 			...subscription,
 			tier,
 			isStudentVerified: tier === 'student' ? subscription.isStudentVerified : false
-		};
+		});
 	};
 
 	const verifyStudent = () => {
-		subscription = {
+		setSubscriptionState({
 			...subscription,
 			tier: 'student',
 			isStudentVerified: true
-		};
+		});
 	};
 
 	onMount(() => {
 		hasSavedProfile = profileExists();
 		securityStatus = hasSavedProfile ? 'Encrypted profile locked' : 'No encrypted profile saved';
+		subscription = loadSubscriptionState();
 	});
 </script>
 
@@ -360,8 +391,10 @@
 			</div>
 			<PurchaseChecker
 				purchase={purchaseInput}
+				options={purchaseOptions}
 				{productOptions}
 				onPurchaseField={updatePurchase}
+				onOptionField={updatePurchaseOption}
 				onRunCheck={runPurchaseCheck}
 				canRunCheck={purchaseCheckAllowed}
 			/>
@@ -379,4 +412,8 @@
 	{#if activeService === 'review'}
 		<GlanceOverview {profile} {subscription} />
 	{/if}
+
+	<footer class="app-footer">
+		FinSight provides educational planning tools, not financial advice.
+	</footer>
 </main>

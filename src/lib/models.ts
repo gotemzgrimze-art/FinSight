@@ -77,8 +77,23 @@ export type PurchaseAlternative = {
 	option: string;
 	result: string;
 	timeCost: string;
+	goalDelay: string;
 	verdict: string;
 	tone: StatusTone;
+};
+
+export type GoalDelay = {
+	goalId: string;
+	goalName: string;
+	months: number | null;
+	weeks: number | null;
+	label: string;
+};
+
+export type PurchaseAssessmentOptions = {
+	waitDays?: number;
+	cheaperAlternativePercentage?: number;
+	investmentYears?: number;
 };
 
 export type PurchaseAssessment = {
@@ -91,10 +106,27 @@ export type PurchaseAssessment = {
 	pros: string[];
 	cons: string[];
 	alternatives: PurchaseAlternative[];
+	goalDelays: GoalDelay[];
+	waitDays: number;
+	cheaperAlternativePercentage: number;
+	investmentYears: number;
 	principal: number;
 	futureAmount: number;
 	futureValue: string;
 	opportunityGain: string;
+};
+
+export type ProfileCompleteness = {
+	status:
+		| 'complete'
+		| 'needs-income'
+		| 'needs-bank-balance'
+		| 'needs-expenses'
+		| 'needs-work-hours'
+		| 'needs-planning-items';
+	label: string;
+	missing: string[];
+	isComplete: boolean;
 };
 
 export type DashboardSnapshot = {

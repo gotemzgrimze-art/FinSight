@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { formatMoney, optionalMoney } from '$lib/calculations';
+	import {
+		calculateAllowanceRemaining,
+		calculateAllowanceUsagePercent,
+		calculateSafeDailyAllowanceSpend,
+		formatMoney
+	} from '$lib/calculations';
 	import type { Allowance } from '$lib/models';
 
 	let {
@@ -14,20 +19,24 @@
 		onRemoveAllowance: (id: string) => void;
 	} = $props();
 
-	const remaining = (allowance: Allowance) => {
+	const allowanceSnapshot = (allowance: Allowance) => {
 		try {
-			return optionalMoney(allowance.limit, `${allowance.name} limit`) - optionalMoney(allowance.spent, `${allowance.name} spent`);
-		} catch {
-			return 0;
-		}
-	};
-
-	const percentUsed = (allowance: Allowance) => {
-		try {
-			const limit = optionalMoney(allowance.limit, `${allowance.name} limit`);
-			return limit > 0 ? Math.min((optionalMoney(allowance.spent, `${allowance.name} spent`) / limit) * 100, 100) : 0;
-		} catch {
-			return 0;
+			const remaining = calculateAllowanceRemaining(allowance.limit, allowance.spent);
+			const usage = calculateAllowanceUsagePercent(allowance.limit, allowance.spent);
+			const daysLeft = allowance.period === 'weekly' ? 7 : 30;
+			return {
+				error: '',
+				remaining,
+				usage,
+				safeDaily: calculateSafeDailyAllowanceSpend(remaining, daysLeft)
+			};
+		} catch (error) {
+			return {
+				error: error instanceof Error ? error.message : 'Fix allowance data',
+				remaining: null,
+				usage: 0,
+				safeDaily: null
+			};
 		}
 	};
 </script>
@@ -43,6 +52,7 @@
 
 	<div class="stack-list">
 		{#each allowances as allowance}
+			{@const snapshot = allowanceSnapshot(allowance)}
 			<div class="allowance-row">
 				<div class="mini-grid">
 					<input value={allowance.name} aria-label="Allowance name" oninput={(event) => onAllowanceChange({ ...allowance, name: event.currentTarget.value })} />
@@ -55,9 +65,16 @@
 					<button class="secondary-action" type="button" onclick={() => onRemoveAllowance(allowance.id)}>Remove</button>
 				</div>
 				<div class="chart-line" aria-label={`${allowance.name} allowance usage`}>
-					<div class="chart-fill" style={`width: ${percentUsed(allowance)}%`}></div>
+					<div class="chart-fill" style={`width: ${snapshot.usage}%`}></div>
 				</div>
-				<p class="short-note">{formatMoney(remaining(allowance))} remaining this {allowance.period === 'weekly' ? 'week' : 'month'}</p>
+				<p class="short-note">
+					{#if snapshot.error}
+						{snapshot.error}
+					{:else}
+						{formatMoney(snapshot.remaining ?? 0)} remaining this {allowance.period === 'weekly' ? 'week' : 'month'}.
+						{formatMoney(snapshot.safeDaily ?? 0)} safe/day.
+					{/if}
+				</p>
 			</div>
 		{/each}
 	</div>
