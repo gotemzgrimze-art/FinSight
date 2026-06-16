@@ -12,6 +12,7 @@
 	import {
 		calculateAffordabilityVerdict,
 		calculateAllowanceRemaining,
+		calculateAllowanceUsagePercent,
 		calculateGoalProgress,
 		calculateMonthlyDebtPayment,
 		optionalMoney,
@@ -27,6 +28,7 @@
 		PurchaseAssessment,
 		PurchaseAssessmentOptions,
 		PurchaseInput,
+		SubscriptionState,
 		SubscriptionTier
 	} from '$lib/models';
 	import {
@@ -41,6 +43,7 @@
 		defaultSubscriptionState,
 		getSubscriptionLimits,
 		loadSubscriptionState,
+		normalizeSubscriptionState,
 		saveSubscriptionState
 	} from '$lib/subscription';
 
@@ -59,7 +62,7 @@
 		cost: '',
 		category: 'electronics'
 	});
-	let purchaseOptions = $state<Required<PurchaseAssessmentOptions>>({
+	let purchaseOptions = $state<Required<Omit<PurchaseAssessmentOptions, 'includeInvestmentOpportunityCost'>>>({
 		waitDays: 45,
 		cheaperAlternativePercentage: 0.72,
 		investmentYears: 15
@@ -70,7 +73,7 @@
 	let savedAt = $state('');
 	let hasSavedProfile = $state(false);
 	let validationMessage = $state('');
-	let subscription = $state({ ...defaultSubscriptionState });
+	let subscription = $state<SubscriptionState>({ ...defaultSubscriptionState });
 
 	const services: Service[] = [
 		{ id: 'dashboard', name: 'Financial Dashboard' },
@@ -85,9 +88,10 @@
 	const subscriptionLimits = $derived(getSubscriptionLimits(subscription));
 	const purchaseCheckAllowed = $derived(canRunPurchaseCheck(subscription));
 
-	const setSubscriptionState = (nextSubscription: typeof subscription) => {
-		subscription = nextSubscription;
-		saveSubscriptionState(nextSubscription);
+	const setSubscriptionState = (nextSubscription: SubscriptionState) => {
+		const normalized = normalizeSubscriptionState(nextSubscription);
+		subscription = normalized;
+		saveSubscriptionState(normalized);
 	};
 
 	const selectService = (service: ServiceId) => {
@@ -104,12 +108,14 @@
 
 	const validateProfile = () => {
 		parseMoney(profile.annualSalary, 'annual income');
-		optionalMoney(profile.bankBalance, 'bank balance');
-		optionalMoney(profile.monthlyExpenses, 'monthly expenses');
+		parseMoney(profile.bankBalance, 'bank balance');
+		parseMoney(profile.monthlyExpenses, 'monthly expenses');
 		if (optionalMoney(profile.workHoursPerMonth, 'work hours per month') <= 0) {
 			throw new Error('work hours per month must be greater than 0');
 		}
-		parsePercentage(profile.investmentReturnRate, 'investment return rate');
+		if (subscriptionLimits.investmentOpportunityCost) {
+			parsePercentage(profile.investmentReturnRate, 'investment return rate');
+		}
 
 		for (const goal of profile.goals) {
 			calculateGoalProgress(goal);
@@ -125,6 +131,7 @@
 
 		for (const allowance of profile.allowances) {
 			calculateAllowanceRemaining(allowance.limit, allowance.spent);
+			calculateAllowanceUsagePercent(allowance.limit, allowance.spent);
 		}
 	};
 
@@ -213,23 +220,33 @@
 	};
 
 	const updatePurchaseOption = (key: keyof PurchaseAssessmentOptions, value: number) => {
-		const nextValue = Number.isFinite(value) && value > 0 ? value : purchaseOptions[key];
+		if (key === 'includeInvestmentOpportunityCost') return;
+		const upperBound = key === 'cheaperAlternativePercentage' ? 1 : 365;
+		const nextValue =
+			Number.isFinite(value) && value > 0 ? Math.min(value, upperBound) : purchaseOptions[key];
 		purchaseOptions = { ...purchaseOptions, [key]: nextValue };
 	};
 
 	const runPurchaseCheck = () => {
 		try {
+			const currentSubscription = normalizeSubscriptionState(subscription);
+			if (currentSubscription.lastResetMonth !== subscription.lastResetMonth) {
+				setSubscriptionState(currentSubscription);
+			}
 			validateProfile();
 
-			if (!purchaseCheckAllowed) {
+			if (!canRunPurchaseCheck(currentSubscription)) {
 				validationMessage = 'Free tier purchase-check limit reached for this month.';
 				return;
 			}
 
-			purchaseAssessment = calculateAffordabilityVerdict(profile, purchaseInput, selectedProduct, purchaseOptions);
+			purchaseAssessment = calculateAffordabilityVerdict(profile, purchaseInput, selectedProduct, {
+				...purchaseOptions,
+				includeInvestmentOpportunityCost: subscriptionLimits.investmentOpportunityCost
+			});
 			setSubscriptionState({
-				...subscription,
-				purchaseChecksUsedThisMonth: subscription.purchaseChecksUsedThisMonth + 1
+				...currentSubscription,
+				purchaseChecksUsedThisMonth: currentSubscription.purchaseChecksUsedThisMonth + 1
 			});
 			validationMessage = '';
 		} catch (error) {
@@ -273,6 +290,7 @@
 	};
 
 	const setTier = (tier: SubscriptionTier) => {
+		purchaseAssessment = null;
 		setSubscriptionState({
 			...subscription,
 			tier,
@@ -319,9 +337,12 @@
 				aria-controls="service-menu"
 				onclick={() => (menuOpen = !menuOpen)}
 			>
-				<span></span>
-				<span></span>
-				<span></span>
+				<span class="menu-icon" aria-hidden="true">
+					<span></span>
+					<span></span>
+					<span></span>
+				</span>
+				<span>Menu</span>
 			</button>
 			{#if menuOpen}
 				<nav id="service-menu" class="service-menu" aria-label="Services">
@@ -403,7 +424,6 @@
 			{/if}
 			<PurchaseResults
 				assessment={purchaseAssessment}
-				{selectedProduct}
 				showInvestment={subscriptionLimits.investmentOpportunityCost}
 			/>
 		</section>

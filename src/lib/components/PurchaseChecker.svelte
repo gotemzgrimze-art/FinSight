@@ -11,7 +11,7 @@
 		canRunCheck
 	}: {
 		purchase: PurchaseInput;
-		options: Required<PurchaseAssessmentOptions>;
+		options: Required<Omit<PurchaseAssessmentOptions, 'includeInvestmentOpportunityCost'>>;
 		productOptions: ProductOption[];
 		onPurchaseField: (key: keyof PurchaseInput, value: string) => void;
 		onOptionField: (key: keyof PurchaseAssessmentOptions, value: number) => void;

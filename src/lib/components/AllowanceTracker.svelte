@@ -50,8 +50,9 @@
 		<button class="secondary-action" type="button" onclick={onAddAllowance}>Add allowance</button>
 	</div>
 
-	<div class="stack-list">
-		{#each allowances as allowance}
+	{#if allowances.length > 0}
+		<div class="stack-list">
+			{#each allowances as allowance}
 			{@const snapshot = allowanceSnapshot(allowance)}
 			<div class="allowance-row">
 				<div class="mini-grid">
@@ -71,11 +72,15 @@
 					{#if snapshot.error}
 						{snapshot.error}
 					{:else}
-						{formatMoney(snapshot.remaining ?? 0)} remaining this {allowance.period === 'weekly' ? 'week' : 'month'}.
-						{formatMoney(snapshot.safeDaily ?? 0)} safe/day.
+						{snapshot.remaining === null ? 'Add allowance data' : formatMoney(snapshot.remaining)} remaining this {allowance.period === 'weekly' ? 'week' : 'month'}.
+						{snapshot.usage.toFixed(0)}% used.
+						{snapshot.safeDaily === null ? 'Add allowance data' : formatMoney(snapshot.safeDaily)} safe/day.
 					{/if}
 				</p>
 			</div>
-		{/each}
-	</div>
+			{/each}
+		</div>
+	{:else}
+		<p class="empty-state">No allowances added. Add a weekly or monthly limit to track safe daily spending.</p>
+	{/if}
 </section>

@@ -81,9 +81,9 @@ pnpm test
 - Editable debt list with payoff estimates
 - Editable weekly/monthly allowances with remaining balance, usage percent, and safe daily allowance spend
 - Purchase checker with rule-based affordability verdict
-- Purchase results with pros, cons, alternatives, work-hours impact, goal delay, and investment opportunity cost
+- Purchase results with pros, cons, configurable alternatives, work-hours impact, goal delay, and investment opportunity cost
 - Mock free, premium, and student subscription tiers
-- Local monthly purchase-check usage persistence for mock subscriptions
+- Local monthly purchase-check usage persistence and reset-month tracking for mock subscriptions
 - Encrypted local profile storage using PBKDF2 and AES-GCM
 - Calculation tests with Vitest
 
@@ -117,6 +117,7 @@ pnpm test
 - Subscription usage is persisted only in browser `localStorage`.
 - Profile encryption is local-device only and has no account recovery.
 - Purchase alternatives use configurable but simple assumptions, not a full cash-flow simulator.
+- Goal delay estimates use current monthly goal contributions and do not model interest, taxes, or changing income.
 - No component or end-to-end tests are currently included.
 - No production privacy, compliance, or security review has been completed.
 

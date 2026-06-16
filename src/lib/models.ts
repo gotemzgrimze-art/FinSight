@@ -44,6 +44,7 @@ export type SubscriptionTier = 'free' | 'premium' | 'student';
 export type SubscriptionState = {
 	tier: SubscriptionTier;
 	purchaseChecksUsedThisMonth: number;
+	lastResetMonth: string;
 	isStudentVerified: boolean;
 };
 
@@ -94,6 +95,7 @@ export type PurchaseAssessmentOptions = {
 	waitDays?: number;
 	cheaperAlternativePercentage?: number;
 	investmentYears?: number;
+	includeInvestmentOpportunityCost?: boolean;
 };
 
 export type PurchaseAssessment = {

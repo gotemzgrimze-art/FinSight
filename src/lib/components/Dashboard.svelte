@@ -17,17 +17,22 @@
 
 	const readDashboard = () => {
 		try {
+			const profileStatus = getProfileCompleteness(profile);
+			if (!profileStatus.isComplete) {
+				throw new Error(profileStatus.label);
+			}
+
 			const monthlyIncome = calculateMonthlyIncome(profile.annualSalary);
 			const monthlyDebt = calculateMonthlyDebtPayment(profile.debts);
 			const monthlyLeftover = calculateMonthlyLeftover(profile.annualSalary, profile.monthlyExpenses, profile.debts);
 			const debtRatio = calculateDebtRatio(profile.annualSalary, profile.debts);
 			const runwayMonths = calculateRunwayMonths(profile.bankBalance, profile.monthlyExpenses, profile.debts);
 			const primaryGoal = profile.goals[0];
-			const goalProgress = primaryGoal ? calculateGoalProgress(primaryGoal) : 0;
+			const goalProgress = primaryGoal ? calculateGoalProgress(primaryGoal) : null;
 			const goalGap = primaryGoal
 				? optionalMoney(primaryGoal.targetAmount, `${primaryGoal.name} target`) -
 					optionalMoney(primaryGoal.currentAmount, `${primaryGoal.name} current amount`)
-				: 0;
+				: null;
 			const safeDailySpend = calculateSafeDailySpend(
 				profile.annualSalary,
 				profile.monthlyExpenses,
@@ -67,14 +72,26 @@
 	const completeness = $derived(getProfileCompleteness(profile));
 	const hasDashboardData = $derived(!snapshot.error);
 	const statusTone = $derived(
-		hasDashboardData && snapshot.monthlyLeftover !== null && snapshot.runwayMonths !== null && snapshot.monthlyLeftover >= 0 && snapshot.runwayMonths >= 1
+		completeness.isComplete &&
+			hasDashboardData &&
+			snapshot.monthlyLeftover !== null &&
+			snapshot.runwayMonths !== null &&
+			snapshot.monthlyLeftover >= 0 &&
+			snapshot.runwayMonths >= 1
 			? 'safe'
+			: hasDashboardData
+				? 'caution'
 			: 'danger'
 	);
 	const statusText = $derived(
-		hasDashboardData && snapshot.monthlyLeftover !== null && snapshot.runwayMonths !== null && snapshot.monthlyLeftover >= 0 && snapshot.runwayMonths >= 1
+		completeness.isComplete &&
+			hasDashboardData &&
+			snapshot.monthlyLeftover !== null &&
+			snapshot.runwayMonths !== null &&
+			snapshot.monthlyLeftover >= 0 &&
+			snapshot.runwayMonths >= 1
 			? 'Covered this month'
-			: 'Add profile data'
+			: completeness.label
 	);
 </script>
 
@@ -136,15 +153,28 @@
 			<div>
 				<p class="eyebrow">Goal</p>
 				<h3 id="fund-title">
-					{snapshot.primaryGoal?.name ?? 'No goal yet'}:
-					{snapshot.goalProgress === null ? 'Add profile data' : `${snapshot.goalProgress.toFixed(0)}%`}
+					{#if snapshot.primaryGoal}
+						{snapshot.primaryGoal.name}: {snapshot.goalProgress === null ? 'Add profile data' : `${snapshot.goalProgress.toFixed(0)}%`}
+					{:else}
+						No goal yet
+					{/if}
 				</h3>
 			</div>
-			<span class="pill tone-safe">{snapshot.goalGap === null ? 'Add profile data' : `${formatMoney(Math.max(0, snapshot.goalGap))} gap`}</span>
+			<span class="pill tone-safe">
+				{#if snapshot.primaryGoal}
+					{snapshot.goalGap === null ? 'Add profile data' : `${formatMoney(Math.max(0, snapshot.goalGap))} gap`}
+				{:else}
+					Add goal
+				{/if}
+			</span>
 		</div>
 		<div class="progress-track" aria-label="Goal progress">
 			<div class="progress-fill" style={`width: ${Math.min(snapshot.goalProgress ?? 0, 100)}%`}></div>
 		</div>
-		<p class="short-note">FinSight provides educational planning tools, not financial advice.</p>
+		<p class="short-note">
+			{snapshot.primaryGoal
+				? 'FinSight provides educational planning tools, not financial advice.'
+				: 'Add a goal, allowance, or debt to complete the planning profile.'}
+		</p>
 	</section>
 </section>

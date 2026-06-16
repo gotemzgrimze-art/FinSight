@@ -1,13 +1,12 @@
 <script lang="ts">
-	import type { ProductOption, PurchaseAssessment } from '$lib/models';
+	import { formatMoney } from '$lib/calculations';
+	import type { PurchaseAssessment } from '$lib/models';
 
 	let {
 		assessment,
-		selectedProduct,
 		showInvestment
 	}: {
 		assessment: PurchaseAssessment | null;
-		selectedProduct: ProductOption;
 		showInvestment: boolean;
 	} = $props();
 
@@ -15,10 +14,10 @@
 		assessment ? Math.max(48, Math.round((assessment.principal / Math.max(assessment.futureAmount, 1)) * 154)) : 48
 	);
 	const preservedCashLabel = $derived(
-		assessment
-			? (assessment.alternatives[assessment.alternatives.length - 1]?.result ?? '').replace(' preserved', '')
-			: ''
+		assessment ? formatMoney(assessment.principal) : ''
 	);
+	const primaryGoalDelay = $derived(assessment?.goalDelays.find((delay) => delay.months !== null)?.label ?? 'No goal delay');
+	const betterOption = $derived(assessment?.alternatives.find((scenario) => scenario.option !== 'Buy now')?.option ?? 'Compare options');
 </script>
 
 {#if assessment}
@@ -41,41 +40,15 @@
 				<span>balance after</span>
 			</div>
 			<div>
-				<strong>{selectedProduct.name}</strong>
-				<span>category</span>
+				<strong>{primaryGoalDelay}</strong>
+				<span>goal delay</span>
+			</div>
+			<div>
+				<strong>{betterOption}</strong>
+				<span>better option</span>
 			</div>
 		</div>
 	</article>
-
-	<div class="pros-cons-grid" aria-label="Purchase pros and cons">
-		<section class="details-panel">
-			<div class="panel-heading">
-				<div>
-					<p class="eyebrow">Pros</p>
-					<h3>What helps this purchase</h3>
-				</div>
-			</div>
-			<ul class="decision-list">
-				{#each assessment.pros as pro}
-					<li>{pro}</li>
-				{/each}
-			</ul>
-		</section>
-
-		<section class="details-panel">
-			<div class="panel-heading">
-				<div>
-					<p class="eyebrow">Cons</p>
-					<h3>What to watch</h3>
-				</div>
-			</div>
-			<ul class="decision-list">
-				{#each assessment.cons as con}
-					<li>{con}</li>
-				{/each}
-			</ul>
-		</section>
-	</div>
 
 	<section class="details-panel detail-section" aria-labelledby="alternatives-title">
 		<div class="panel-heading">
@@ -145,6 +118,36 @@
 			<p class="short-note">Skipping could add about {assessment.opportunityGain} before taxes and inflation.</p>
 		</section>
 	{/if}
+
+	<div class="pros-cons-grid" aria-label="Purchase pros and cons">
+		<section class="details-panel">
+			<div class="panel-heading">
+				<div>
+					<p class="eyebrow">Pros</p>
+					<h3>What helps this purchase</h3>
+				</div>
+			</div>
+			<ul class="decision-list">
+				{#each assessment.pros as pro}
+					<li>{pro}</li>
+				{/each}
+			</ul>
+		</section>
+
+		<section class="details-panel">
+			<div class="panel-heading">
+				<div>
+					<p class="eyebrow">Cons</p>
+					<h3>What to watch</h3>
+				</div>
+			</div>
+			<ul class="decision-list">
+				{#each assessment.cons as con}
+					<li>{con}</li>
+				{/each}
+			</ul>
+		</section>
+	</div>
 
 	<p class="result-disclaimer">FinSight provides educational planning tools, not financial advice.</p>
 {:else}
