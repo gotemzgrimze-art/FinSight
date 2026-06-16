@@ -169,7 +169,9 @@ export const calculateGoalDelayMonths = (
 	const weeks = months * 4.345;
 	const roundedMonths = Number(months.toFixed(1));
 	const roundedWeeks = Math.round(weeks);
-	const label = months < 1 ? `${roundedWeeks} weeks` : `${roundedMonths} months`;
+	const monthUnit = roundedMonths === 1 ? 'month' : 'months';
+	const weekUnit = roundedWeeks === 1 ? 'week' : 'weeks';
+	const label = months < 1 ? `${roundedWeeks} ${weekUnit}` : `${roundedMonths} ${monthUnit}`;
 
 	return {
 		months: roundedMonths,
@@ -196,7 +198,7 @@ export const calculateAllowanceRemaining = (limitAmount: string, spentAmount: st
 
 export const calculateAllowanceUsagePercent = (limitAmount: string, spentAmount: string): number => {
 	const limit = optionalMoney(limitAmount, 'allowance limit');
-	if (limit <= 0) return 0;
+	if (limit <= 0) throw new Error('allowance limit must be greater than 0');
 	return Math.min((optionalMoney(spentAmount, 'allowance spent') / limit) * 100, 100);
 };
 
@@ -226,13 +228,42 @@ export const calculateDebtPayoffMonths = (debt: Debt): number => {
 const categoryLabel = (necessity: number): string =>
 	necessity >= 8 ? 'Necessary' : necessity >= 5 ? 'Useful' : 'Optional';
 
+const positiveOption = (value: number, fallback: number, fieldName: string): number => {
+	const resolved = value ?? fallback;
+	if (!Number.isFinite(resolved) || resolved <= 0) throw new Error(`${fieldName} must be greater than 0`);
+	return resolved;
+};
+
+const summarizeGoalDelay = (goalDelays: GoalDelay[], fallback = 'No active goal delay'): string => {
+	const activeDelay = goalDelays.find((delay) => delay.months !== null);
+	if (!activeDelay) return goalDelays[0]?.label ?? fallback;
+	return `${activeDelay.goalName}: ${activeDelay.label}`;
+};
+
+const hasValidMoneyInput = (value: string, fieldName: string): boolean => {
+	try {
+		parseMoney(value, fieldName);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
+const hasValidPositiveMoneyInput = (value: string, fieldName: string): boolean => {
+	try {
+		return parseMoney(value, fieldName) > 0;
+	} catch {
+		return false;
+	}
+};
+
 export const getProfileCompleteness = (profile: FinancialProfile): ProfileCompleteness => {
 	const missing: string[] = [];
 
-	if (!profile.annualSalary.trim()) missing.push('income');
-	if (!profile.bankBalance.trim()) missing.push('bank balance');
-	if (!profile.monthlyExpenses.trim()) missing.push('expenses');
-	if (!profile.workHoursPerMonth.trim()) missing.push('work hours');
+	if (!hasValidPositiveMoneyInput(profile.annualSalary, 'annual income')) missing.push('income');
+	if (!hasValidMoneyInput(profile.bankBalance, 'bank balance')) missing.push('bank balance');
+	if (!hasValidMoneyInput(profile.monthlyExpenses, 'monthly expenses')) missing.push('expenses');
+	if (!hasValidPositiveMoneyInput(profile.workHoursPerMonth, 'work hours')) missing.push('work hours');
 	if (profile.goals.length === 0 && profile.allowances.length === 0 && profile.debts.length === 0) {
 		missing.push('goals, allowances, or debts');
 	}
@@ -278,9 +309,17 @@ export const calculateAffordabilityVerdict = (
 	product: ProductOption,
 	options: PurchaseAssessmentOptions = {}
 ): PurchaseAssessment => {
-	const waitDays = options.waitDays ?? 45;
-	const cheaperAlternativePercentage = options.cheaperAlternativePercentage ?? 0.72;
-	const investmentYears = options.investmentYears ?? 15;
+	const waitDays = positiveOption(options.waitDays ?? 45, 45, 'wait days');
+	const cheaperAlternativePercentage = positiveOption(
+		options.cheaperAlternativePercentage ?? 0.72,
+		0.72,
+		'cheaper alternative percentage'
+	);
+	if (cheaperAlternativePercentage > 1) {
+		throw new Error('cheaper alternative percentage cannot exceed 100%');
+	}
+	const investmentYears = positiveOption(options.investmentYears ?? 15, 15, 'investment years');
+	const includeInvestmentOpportunityCost = options.includeInvestmentOpportunityCost ?? true;
 	const itemName = purchase.name.trim() || 'this purchase';
 	const cost = parseMoney(purchase.cost, 'purchase price');
 	if (cost <= 0) throw new Error('purchase price must be greater than 0');
@@ -299,7 +338,9 @@ export const calculateAffordabilityVerdict = (
 	const verdict = shouldAvoid ? 'Do not buy yet' : shouldWait ? 'Wait or find cheaper' : 'Buy is reasonable';
 	const workHours = calculatePurchaseWorkHours(purchase.cost, profile.annualSalary, profile.workHoursPerMonth);
 	const hourlyIncome = calculateHourlyIncome(profile.annualSalary, profile.workHoursPerMonth);
-	const annualReturnRate = parsePercentage(profile.investmentReturnRate, 'investment return rate') / 100;
+	const annualReturnRate = includeInvestmentOpportunityCost
+		? parsePercentage(profile.investmentReturnRate, 'investment return rate') / 100
+		: 0;
 	const futureValue = calculateFutureValue(cost, annualReturnRate, investmentYears);
 	const cheaperCost = cost * cheaperAlternativePercentage;
 	const waitSavings = Math.max(
@@ -307,8 +348,62 @@ export const calculateAffordabilityVerdict = (
 		0
 	);
 	const goalDelays = calculateGoalDelaysForPurchase(cost, profile.goals);
-	const goalDelaySummary = goalDelays[0]?.label ?? 'No goals';
+	const goalDelaySummary = summarizeGoalDelay(goalDelays, 'No goals');
 	const debtTarget = profile.debts.find((debt) => optionalMoney(debt.balance, `${debt.name} balance`) > 0);
+	const alternatives: PurchaseAssessment['alternatives'] = [
+		{
+			option: 'Buy now',
+			result: `${formatMoney(balanceAfter)} left after cash impact`,
+			timeCost: `${workHours.toFixed(1)} hrs`,
+			goalDelay: goalDelaySummary,
+			verdict,
+			tone
+		},
+		{
+			option: `Wait ${waitDays} days`,
+			result: `${formatMoney(balanceAfter + waitSavings)} projected left`,
+			timeCost: `${Math.max(workHours - waitSavings / Math.max(hourlyIncome, 1), 0).toFixed(1)} hrs`,
+			goalDelay:
+				waitSavings >= cost
+					? 'No delay if fully saved first'
+					: summarizeGoalDelay(
+							calculateGoalDelaysForPurchase(Math.max(cost - waitSavings, 0.01), profile.goals),
+							'No goals'
+						),
+			verdict: waitSavings >= cost * 0.25 ? 'Better' : 'Still tight',
+			tone: waitSavings >= cost * 0.25 ? 'safe' : 'caution'
+		},
+		{
+			option: 'Buy cheaper version',
+			result: `${formatMoney(balance - cheaperCost)} left after cash impact`,
+			timeCost: `${(cheaperCost / Math.max(hourlyIncome, 1)).toFixed(1)} hrs`,
+			goalDelay: summarizeGoalDelay(calculateGoalDelaysForPurchase(cheaperCost, profile.goals), 'No goals'),
+			verdict: `${Math.round(cheaperAlternativePercentage * 100)}% cost`,
+			tone: 'safe'
+		}
+	];
+
+	if (includeInvestmentOpportunityCost) {
+		alternatives.push({
+			option: 'Invest instead',
+			result: `${formatMoney(futureValue)} in ${investmentYears} years`,
+			timeCost: '0.0 hrs',
+			goalDelay: 'No purchase delay',
+			verdict: `${formatMoney(futureValue - cost)} potential gain`,
+			tone: 'safe'
+		});
+	}
+
+	if (debtTarget) {
+		alternatives.push({
+			option: 'Pay debt instead',
+			result: `${formatMoney(Math.min(cost, optionalMoney(debtTarget.balance, `${debtTarget.name} balance`)))} toward ${debtTarget.name}`,
+			timeCost: `${workHours.toFixed(1)} hrs redirected`,
+			goalDelay: 'No purchase delay',
+			verdict: 'Reduces obligations',
+			tone: 'safe'
+		});
+	}
 
 	return {
 		verdict,
@@ -331,61 +426,7 @@ export const calculateAffordabilityVerdict = (
 					? 'It takes a large share of monthly leftover cash.'
 					: 'It reduces cash available for goals, debt, and emergencies.'
 		],
-		alternatives: [
-			{
-				option: 'Buy today',
-				result: `${formatMoney(balanceAfter)} left after cash impact`,
-				timeCost: `${workHours.toFixed(1)} hrs`,
-				goalDelay: goalDelaySummary,
-				verdict,
-				tone
-			},
-			{
-				option: `Wait ${waitDays} days`,
-				result: `${formatMoney(balanceAfter + waitSavings)} projected left`,
-				timeCost: `${Math.max(workHours - waitSavings / Math.max(hourlyIncome, 1), 0).toFixed(1)} hrs`,
-				goalDelay:
-					waitSavings >= cost
-						? 'No delay if fully saved first'
-						: calculateGoalDelayMonths(Math.max(cost - waitSavings, 0.01), profile.goals[0]?.monthlyContribution ?? '0').label,
-				verdict: waitSavings >= cost * 0.25 ? 'Better' : 'Still tight',
-				tone: waitSavings >= cost * 0.25 ? 'safe' : 'caution'
-			},
-			{
-				option: 'Buy cheaper',
-				result: `${formatMoney(balance - cheaperCost)} left`,
-				timeCost: `${(cheaperCost / Math.max(hourlyIncome, 1)).toFixed(1)} hrs`,
-				goalDelay: calculateGoalDelayMonths(cheaperCost, profile.goals[0]?.monthlyContribution ?? '0').label,
-				verdict: 'Lower impact',
-				tone: 'safe'
-			},
-			{
-				option: 'Invest instead',
-				result: `${formatMoney(futureValue)} in ${investmentYears} years`,
-				timeCost: '0.0 hrs',
-				goalDelay: 'No goal delay',
-				verdict: `${formatMoney(futureValue - cost)} potential gain`,
-				tone: 'safe'
-			},
-			{
-				option: 'Pay debt instead',
-				result: debtTarget
-					? `${formatMoney(Math.min(cost, optionalMoney(debtTarget.balance, `${debtTarget.name} balance`)))} toward ${debtTarget.name}`
-					: 'No active debt',
-				timeCost: '0.0 hrs',
-				goalDelay: 'No purchase delay',
-				verdict: debtTarget ? 'Reduces obligations' : 'Not applicable',
-				tone: debtTarget ? 'safe' : 'caution'
-			},
-			{
-				option: 'Skip it',
-				result: `${formatMoney(cost)} preserved`,
-				timeCost: '0.0 hrs',
-				goalDelay: 'No goal delay',
-				verdict: 'Future win',
-				tone: 'safe'
-			}
-		],
+		alternatives,
 		goalDelays,
 		waitDays,
 		cheaperAlternativePercentage,

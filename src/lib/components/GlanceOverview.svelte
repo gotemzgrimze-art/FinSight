@@ -10,21 +10,30 @@
 
 	let { profile, subscription }: { profile: FinancialProfile; subscription: SubscriptionState } = $props();
 
-	const safe = (compute: () => number) => {
+	const readOverview = () => {
 		try {
-			return compute();
-		} catch {
-			return 0;
+			return {
+				error: '',
+				monthlyLeftover: calculateMonthlyLeftover(profile.annualSalary, profile.monthlyExpenses, profile.debts),
+				debtRatio: calculateDebtRatio(profile.annualSalary, profile.debts),
+				dailySpend: calculateSafeDailySpend(
+					profile.annualSalary,
+					profile.monthlyExpenses,
+					profile.debts,
+					profile.goals
+				)
+			};
+		} catch (error) {
+			return {
+				error: error instanceof Error ? error.message : 'Add profile data',
+				monthlyLeftover: null,
+				debtRatio: null,
+				dailySpend: null
+			};
 		}
 	};
 
-	const monthlyLeftover = $derived(
-		safe(() => calculateMonthlyLeftover(profile.annualSalary, profile.monthlyExpenses, profile.debts))
-	);
-	const debtRatio = $derived(safe(() => calculateDebtRatio(profile.annualSalary, profile.debts)));
-	const dailySpend = $derived(
-		safe(() => calculateSafeDailySpend(profile.annualSalary, profile.monthlyExpenses, profile.debts, profile.goals))
-	);
+	const overview = $derived(readOverview());
 	const limits = $derived(getSubscriptionLimits(subscription));
 </script>
 
@@ -37,17 +46,23 @@
 	<ul class="checklist overview-list">
 		<li>
 			<span aria-hidden="true">Status</span>
-			<strong>{monthlyLeftover >= 0 ? 'Covered' : 'Short'}</strong>
-			<p>{formatMoney(monthlyLeftover)} after expenses and debt.</p>
+			<strong>
+				{overview.monthlyLeftover === null ? 'Needs data' : overview.monthlyLeftover >= 0 ? 'Covered' : 'Short'}
+			</strong>
+			<p>
+				{overview.monthlyLeftover === null
+					? overview.error
+					: `${formatMoney(overview.monthlyLeftover)} after expenses and debt.`}
+			</p>
 		</li>
 		<li>
 			<span aria-hidden="true">Spend</span>
-			<strong>{formatMoney(dailySpend)}/day</strong>
+			<strong>{overview.dailySpend === null ? 'Add profile data' : `${formatMoney(overview.dailySpend)}/day`}</strong>
 			<p>Safe daily spend after goals.</p>
 		</li>
 		<li>
 			<span aria-hidden="true">Debt</span>
-			<strong>{debtRatio.toFixed(1)}%</strong>
+			<strong>{overview.debtRatio === null ? 'Add profile data' : `${overview.debtRatio.toFixed(1)}%`}</strong>
 			<p>Debt ratio from the editable debt list.</p>
 		</li>
 		<li>

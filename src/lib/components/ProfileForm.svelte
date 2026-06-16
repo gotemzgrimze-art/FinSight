@@ -86,43 +86,47 @@
 			<button class="secondary-action" type="button" onclick={onAddGoal}>Add goal</button>
 		</div>
 
-		<div class="stack-list">
-			{#each profile.goals as goal}
-				<div class="mini-grid">
-					<input
-						aria-label="Goal name"
-						placeholder="Goal"
-						value={goal.name}
-						oninput={(event) => onGoalChange({ ...goal, name: event.currentTarget.value })}
-					/>
-					<input
-						aria-label="Goal target"
-						type="number"
-						min="1"
-						placeholder="Target"
-						value={goal.targetAmount}
-						oninput={(event) => onGoalChange({ ...goal, targetAmount: event.currentTarget.value })}
-					/>
-					<input
-						aria-label="Goal saved"
-						type="number"
-						min="0"
-						placeholder="Saved"
-						value={goal.currentAmount}
-						oninput={(event) => onGoalChange({ ...goal, currentAmount: event.currentTarget.value })}
-					/>
-					<input
-						aria-label="Goal contribution"
-						type="number"
-						min="0"
-						placeholder="Monthly"
-						value={goal.monthlyContribution}
-						oninput={(event) => onGoalChange({ ...goal, monthlyContribution: event.currentTarget.value })}
-					/>
-					<button class="secondary-action" type="button" onclick={() => onRemoveGoal(goal.id)}>Remove</button>
-				</div>
-			{/each}
-		</div>
+		{#if profile.goals.length > 0}
+			<div class="stack-list">
+				{#each profile.goals as goal}
+					<div class="mini-grid">
+						<input
+							aria-label="Goal name"
+							placeholder="Goal"
+							value={goal.name}
+							oninput={(event) => onGoalChange({ ...goal, name: event.currentTarget.value })}
+						/>
+						<input
+							aria-label="Goal target"
+							type="number"
+							min="1"
+							placeholder="Target"
+							value={goal.targetAmount}
+							oninput={(event) => onGoalChange({ ...goal, targetAmount: event.currentTarget.value })}
+						/>
+						<input
+							aria-label="Goal saved"
+							type="number"
+							min="0"
+							placeholder="Saved"
+							value={goal.currentAmount}
+							oninput={(event) => onGoalChange({ ...goal, currentAmount: event.currentTarget.value })}
+						/>
+						<input
+							aria-label="Goal contribution"
+							type="number"
+							min="0"
+							placeholder="Monthly"
+							value={goal.monthlyContribution}
+							oninput={(event) => onGoalChange({ ...goal, monthlyContribution: event.currentTarget.value })}
+						/>
+						<button class="secondary-action" type="button" onclick={() => onRemoveGoal(goal.id)}>Remove</button>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<p class="empty-state">No goals added. Add one to show purchase delay and progress on the dashboard.</p>
+		{/if}
 
 		<div class="security-row">
 			<label>

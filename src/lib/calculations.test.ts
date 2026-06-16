@@ -74,9 +74,91 @@ describe('calculations', () => {
 		);
 
 		expect(assessment.verdict).toMatch(/Buy|Wait|Do not/);
-		expect(assessment.alternatives).toHaveLength(6);
+		expect(assessment.alternatives.map((alternative) => alternative.option)).toEqual([
+			'Buy now',
+			'Wait 45 days',
+			'Buy cheaper version',
+			'Invest instead',
+			'Pay debt instead'
+		]);
 		expect(assessment.futureValue).toMatch(/^\$/);
 		expect(assessment.goalDelays.length).toBeGreaterThan(0);
+	});
+
+	it('uses configurable purchase alternative assumptions', () => {
+		const purchase: PurchaseInput = {
+			name: 'Laptop',
+			cost: '1000',
+			category: 'electronics'
+		};
+		const assessment = calculateAffordabilityVerdict(
+			demoProfile,
+			purchase,
+			productOptions.find((option) => option.id === 'electronics') ?? productOptions[0],
+			{
+				waitDays: 30,
+				cheaperAlternativePercentage: 0.5,
+				investmentYears: 10
+			}
+		);
+
+		expect(assessment.alternatives[1].option).toBe('Wait 30 days');
+		expect(assessment.alternatives[2].verdict).toBe('50% cost');
+		expect(assessment.alternatives[3].result).toContain('10 years');
+	});
+
+	it('omits investment alternative when opportunity cost is disabled', () => {
+		const purchase: PurchaseInput = {
+			name: 'Laptop',
+			cost: '1000',
+			category: 'electronics'
+		};
+		const assessment = calculateAffordabilityVerdict(
+			{ ...demoProfile, investmentReturnRate: 'not used' },
+			purchase,
+			productOptions.find((option) => option.id === 'electronics') ?? productOptions[0],
+			{ includeInvestmentOpportunityCost: false }
+		);
+
+		expect(assessment.alternatives.map((alternative) => alternative.option)).not.toContain('Invest instead');
+		expect(assessment.futureAmount).toBe(assessment.principal);
+	});
+
+	it('rejects invalid purchase alternative assumptions', () => {
+		const purchase: PurchaseInput = {
+			name: 'Laptop',
+			cost: '1000',
+			category: 'electronics'
+		};
+		const product = productOptions.find((option) => option.id === 'electronics') ?? productOptions[0];
+
+		expect(() => calculateAffordabilityVerdict(demoProfile, purchase, product, { waitDays: 0 })).toThrow(
+			'wait days'
+		);
+		expect(() =>
+			calculateAffordabilityVerdict(demoProfile, purchase, product, {
+				cheaperAlternativePercentage: 1.2
+			})
+		).toThrow('cannot exceed 100%');
+		expect(() => calculateAffordabilityVerdict(demoProfile, purchase, product, { investmentYears: -1 })).toThrow(
+			'investment years'
+		);
+	});
+
+	it('omits pay debt alternative when there are no active debts', () => {
+		const purchase: PurchaseInput = {
+			name: 'Desk',
+			cost: '300',
+			category: 'furniture'
+		};
+		const assessment = calculateAffordabilityVerdict(
+			{ ...demoProfile, debts: [] },
+			purchase,
+			productOptions.find((option) => option.id === 'furniture') ?? productOptions[0]
+		);
+
+		expect(assessment.alternatives.map((alternative) => alternative.option)).not.toContain('Pay debt instead');
+		expect(assessment.alternatives).toHaveLength(4);
 	});
 
 	it('calculates safe daily spend', () => {
@@ -119,6 +201,14 @@ describe('calculations', () => {
 		expect(delay.label).toBe('No active contribution');
 	});
 
+	it('shows week-based goal delay for sub-month delays', () => {
+		const delay = calculateGoalDelayMonths(100, 500);
+
+		expect(delay.months).toBe(0.2);
+		expect(delay.weeks).toBe(1);
+		expect(delay.label).toBe('1 week');
+	});
+
 	it('calculates goal delays for every purchase goal', () => {
 		const delays = calculateGoalDelaysForPurchase(500, [
 			{
@@ -144,12 +234,16 @@ describe('calculations', () => {
 		expect(calculateAllowanceUsagePercent('100', '150')).toBe(100);
 	});
 
+	it('rejects allowance usage without a positive limit', () => {
+		expect(() => calculateAllowanceUsagePercent('0', '10')).toThrow('allowance limit');
+	});
+
 	it('calculates safe daily allowance spend', () => {
 		expect(calculateSafeDailyAllowanceSpend(140, 7)).toBe(20);
 	});
 
 	it('calculates future value with a custom return rate', () => {
-		expect(calculateFutureValue(1500, 0.085, 15)).toBeCloseTo(5099.92, 1);
+		expect(calculateFutureValue(1500, 0.085, 15)).toBeCloseTo(5099.61, 1);
 	});
 
 	it('handles affordability verdict edge cases', () => {
@@ -170,11 +264,19 @@ describe('calculations', () => {
 
 	it('rejects negative purchase prices', () => {
 		expect(() => calculatePurchaseWorkHours('-100', '60000', '200')).toThrow('cannot be negative');
+		expect(() =>
+			calculateAffordabilityVerdict(
+				demoProfile,
+				{ name: 'Bad input', cost: '-100', category: 'electronics' },
+				productOptions.find((option) => option.id === 'electronics') ?? productOptions[0]
+			)
+		).toThrow('cannot be negative');
 	});
 
 	it('rejects invalid money input', () => {
 		expect(() => parseMoney('abc')).toThrow('valid money');
 		expect(() => parseMoney('-1')).toThrow('cannot be negative');
 		expect(() => parseMoney('')).toThrow('required');
+		expect(() => calculateAllowanceRemaining('1e3', '10')).toThrow('valid money');
 	});
 });

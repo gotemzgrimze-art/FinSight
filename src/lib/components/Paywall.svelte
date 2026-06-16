@@ -29,5 +29,6 @@
 	</div>
 	<p class="short-note">
 		Checks used this month: {subscription.purchaseChecksUsedThisMonth} / {Number.isFinite(limits.maxPurchaseChecksPerMonth) ? limits.maxPurchaseChecksPerMonth : 'unlimited'}.
+		Reset month: {subscription.lastResetMonth}.
 	</p>
 </section>

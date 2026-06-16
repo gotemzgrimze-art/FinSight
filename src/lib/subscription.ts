@@ -35,27 +35,48 @@ export const subscriptionLimits: Record<SubscriptionTier, SubscriptionLimits> = 
 export const defaultSubscriptionState: SubscriptionState = {
 	tier: 'free',
 	purchaseChecksUsedThisMonth: 0,
+	lastResetMonth: new Date().toISOString().slice(0, 7),
 	isStudentVerified: false
 };
 
 const subscriptionStorageKey = 'finsight-subscription-state';
 
-const currentResetMonth = (): string => new Date().toISOString().slice(0, 7);
+export const currentResetMonth = (): string => new Date().toISOString().slice(0, 7);
 
-type StoredSubscriptionState = SubscriptionState & {
-	lastResetMonth: string;
+type StoredSubscriptionState = Partial<SubscriptionState> & {
+	subscriptionType?: SubscriptionTier;
+	monthlyPurchaseCheckCount?: number;
 };
 
-const normalizeSubscriptionState = (state: StoredSubscriptionState): StoredSubscriptionState => {
+export const normalizeSubscriptionState = (state: StoredSubscriptionState): SubscriptionState => {
 	const resetMonth = currentResetMonth();
+	const tier: SubscriptionTier =
+		state.tier === 'premium' || state.tier === 'student'
+			? state.tier
+			: state.subscriptionType === 'premium' || state.subscriptionType === 'student'
+				? state.subscriptionType
+				: 'free';
+	const purchaseChecksUsedThisMonth = Number(
+		state.purchaseChecksUsedThisMonth ?? state.monthlyPurchaseCheckCount ?? 0
+	);
+
 	if (state.lastResetMonth !== resetMonth) {
 		return {
-			...state,
+			tier,
 			purchaseChecksUsedThisMonth: 0,
-			lastResetMonth: resetMonth
+			lastResetMonth: resetMonth,
+			isStudentVerified: Boolean(state.isStudentVerified)
 		};
 	}
-	return state;
+
+	return {
+		tier,
+		purchaseChecksUsedThisMonth: Number.isFinite(purchaseChecksUsedThisMonth)
+			? Math.max(0, purchaseChecksUsedThisMonth)
+			: 0,
+		lastResetMonth: state.lastResetMonth ?? resetMonth,
+		isStudentVerified: Boolean(state.isStudentVerified)
+	};
 };
 
 export const loadSubscriptionState = (): SubscriptionState => {
@@ -66,23 +87,9 @@ export const loadSubscriptionState = (): SubscriptionState => {
 
 	try {
 		const parsed = JSON.parse(raw) as Partial<StoredSubscriptionState>;
-		const tier: SubscriptionTier =
-			parsed.tier === 'premium' || parsed.tier === 'student' ? parsed.tier : 'free';
-		const purchaseChecksUsedThisMonth = Number(parsed.purchaseChecksUsedThisMonth ?? 0);
-		const normalized = normalizeSubscriptionState({
-			tier,
-			purchaseChecksUsedThisMonth: Number.isFinite(purchaseChecksUsedThisMonth)
-				? Math.max(0, purchaseChecksUsedThisMonth)
-				: 0,
-			isStudentVerified: Boolean(parsed.isStudentVerified),
-			lastResetMonth: parsed.lastResetMonth ?? currentResetMonth()
-		});
+		const normalized = normalizeSubscriptionState(parsed);
 		saveSubscriptionState(normalized);
-		return {
-			tier: normalized.tier,
-			purchaseChecksUsedThisMonth: normalized.purchaseChecksUsedThisMonth,
-			isStudentVerified: normalized.isStudentVerified
-		};
+		return normalized;
 	} catch {
 		return { ...defaultSubscriptionState };
 	}
@@ -91,9 +98,11 @@ export const loadSubscriptionState = (): SubscriptionState => {
 export const saveSubscriptionState = (state: SubscriptionState): void => {
 	if (typeof localStorage === 'undefined') return;
 
+	const normalized = normalizeSubscriptionState(state);
 	const stored: StoredSubscriptionState = {
-		...state,
-		lastResetMonth: currentResetMonth()
+		...normalized,
+		subscriptionType: normalized.tier,
+		monthlyPurchaseCheckCount: normalized.purchaseChecksUsedThisMonth
 	};
 	localStorage.setItem(subscriptionStorageKey, JSON.stringify(stored));
 };
@@ -104,8 +113,10 @@ export const getSubscriptionLimits = (state: SubscriptionState): SubscriptionLim
 export const canAddGoal = (state: SubscriptionState, currentGoalCount: number): boolean =>
 	currentGoalCount < getSubscriptionLimits(state).maxGoals;
 
-export const canRunPurchaseCheck = (state: SubscriptionState): boolean =>
-	state.purchaseChecksUsedThisMonth < getSubscriptionLimits(state).maxPurchaseChecksPerMonth;
+export const canRunPurchaseCheck = (state: SubscriptionState): boolean => {
+	const normalized = normalizeSubscriptionState(state);
+	return normalized.purchaseChecksUsedThisMonth < getSubscriptionLimits(normalized).maxPurchaseChecksPerMonth;
+};
 
 export const describeTier = (tier: SubscriptionTier): string => {
 	if (tier === 'premium') return 'Unlimited goals, unlimited purchase checks, 12-month forecast.';
