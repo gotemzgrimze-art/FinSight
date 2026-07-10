@@ -1,14 +1,18 @@
 import type {
 	Debt,
+	AssetAccount,
 	FinancialProfile,
 	Goal,
 	GoalDelay,
+	MoneyInsight,
 	ProfileCompleteness,
 	ProductOption,
 	PurchaseAssessment,
 	PurchaseAssessmentOptions,
 	PurchaseInput,
-	StatusTone
+	RecurringItem,
+	StatusTone,
+	Transaction
 } from '$lib/models';
 
 const moneyPattern = /^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/;
@@ -208,6 +212,180 @@ export const calculateSafeDailyAllowanceSpend = (remainingAmount: string | numbe
 			: optionalMoney(remainingAmount, 'allowance remaining');
 	if (!Number.isFinite(remaining)) throw new Error('allowance remaining must be a valid money amount');
 	return Math.max(remaining / daysLeft, 0);
+};
+
+export const calculateDebtBalance = (debts: Debt[]): number =>
+	debts.reduce((total, debt) => total + optionalMoney(debt.balance, `${debt.name} balance`), 0);
+
+export const calculateAssetTotal = (assets: AssetAccount[]): number =>
+	assets.reduce((total, asset) => total + optionalMoney(asset.balance, `${asset.name} balance`), 0);
+
+export const calculateNetWorth = (assets: AssetAccount[], debts: Debt[]): number =>
+	calculateAssetTotal(assets) - calculateDebtBalance(debts);
+
+export const calculateRecurringMonthlyTotal = (items: RecurringItem[]): number =>
+	items.reduce((total, item) => total + optionalMoney(item.amount, `${item.name} amount`), 0);
+
+export const calculateRecurringReviewTotal = (items: RecurringItem[]): number =>
+	items
+		.filter((item) => item.status === 'review' || item.status === 'cancel')
+		.reduce((total, item) => total + optionalMoney(item.amount, `${item.name} amount`), 0);
+
+export const getUpcomingRecurringItems = (items: RecurringItem[], today = new Date()): RecurringItem[] => {
+	const currentDay = today.getDate();
+
+	return [...items]
+		.filter((item) => item.status !== 'cancel')
+		.sort((left, right) => {
+			const leftDay = Math.max(1, Math.min(31, Math.round(optionalMoney(left.dueDay, `${left.name} due day`))));
+			const rightDay = Math.max(1, Math.min(31, Math.round(optionalMoney(right.dueDay, `${right.name} due day`))));
+			const leftDistance = leftDay >= currentDay ? leftDay - currentDay : leftDay + 31 - currentDay;
+			const rightDistance = rightDay >= currentDay ? rightDay - currentDay : rightDay + 31 - currentDay;
+			return leftDistance - rightDistance;
+		})
+		.slice(0, 4);
+};
+
+export const calculateTransactionSummary = (transactions: Transaction[]) => {
+	const categories = new Map<string, number>();
+	let income = 0;
+	let expenses = 0;
+	let essentialExpenses = 0;
+	let discretionaryExpenses = 0;
+
+	for (const transaction of transactions) {
+		const amount = optionalMoney(transaction.amount, `${transaction.merchant} amount`);
+
+		if (transaction.type === 'income') {
+			income += amount;
+			continue;
+		}
+
+		expenses += amount;
+		if (transaction.essential) essentialExpenses += amount;
+		else discretionaryExpenses += amount;
+		categories.set(transaction.category, (categories.get(transaction.category) ?? 0) + amount);
+	}
+
+	return {
+		income,
+		expenses,
+		essentialExpenses,
+		discretionaryExpenses,
+		net: income - expenses,
+		topCategories: [...categories.entries()]
+			.map(([category, amount]) => ({ category, amount }))
+			.sort((left, right) => right.amount - left.amount)
+			.slice(0, 5)
+	};
+};
+
+export const calculateGoalContributionTotal = (goals: Goal[]): number =>
+	goals.reduce((total, goal) => total + optionalMoney(goal.monthlyContribution, `${goal.name} monthly contribution`), 0);
+
+export const calculateMonthlyPlan = (profile: FinancialProfile) => {
+	const monthlyIncome = calculateMonthlyIncome(profile.annualSalary);
+	const expenses = optionalMoney(profile.monthlyExpenses, 'monthly expenses');
+	const debtPayments = calculateMonthlyDebtPayment(profile.debts);
+	const goalContributions = calculateGoalContributionTotal(profile.goals);
+	const recurringTotal = calculateRecurringMonthlyTotal(profile.recurringItems);
+	const leftover = monthlyIncome - expenses - debtPayments - goalContributions;
+	const fixedPressure = expenses + debtPayments + goalContributions;
+	const fixedRatio = monthlyIncome > 0 ? (fixedPressure / monthlyIncome) * 100 : 0;
+
+	return {
+		monthlyIncome,
+		expenses,
+		debtPayments,
+		goalContributions,
+		recurringTotal,
+		leftover,
+		fixedPressure,
+		fixedRatio
+	};
+};
+
+export const generateMoneyInsights = (profile: FinancialProfile): MoneyInsight[] => {
+	const insights: MoneyInsight[] = [];
+	const plan = calculateMonthlyPlan(profile);
+	const safeDailySpend = calculateSafeDailySpend(
+		profile.annualSalary,
+		profile.monthlyExpenses,
+		profile.debts,
+		profile.goals
+	);
+	const runwayMonths = calculateRunwayMonths(profile.bankBalance, profile.monthlyExpenses, profile.debts);
+	const debtRatio = calculateDebtRatio(profile.annualSalary, profile.debts);
+	const reviewTotal = calculateRecurringReviewTotal(profile.recurringItems);
+	const transactionSummary = calculateTransactionSummary(profile.transactions);
+
+	if (plan.leftover < 0) {
+		insights.push({
+			id: 'negative-leftover',
+			title: 'Monthly plan is short',
+			body: `${formatMoney(Math.abs(plan.leftover))} more is committed than expected income after bills, debt, and goals.`,
+			tone: 'danger',
+			action: 'Cut spending, pause a goal, or raise income before new purchases.'
+		});
+	} else {
+		insights.push({
+			id: 'safe-spend',
+			title: 'Daily spending guardrail',
+			body: `${formatMoney(safeDailySpend)} is the current safe daily spend after bills, debt, and goals.`,
+			tone: safeDailySpend >= 25 ? 'safe' : 'caution',
+			action: 'Use this number before dining, shopping, or impulse buys.'
+		});
+	}
+
+	if (runwayMonths < 1) {
+		insights.push({
+			id: 'runway-low',
+			title: 'Cash runway is thin',
+			body: `Current cash covers about ${runwayMonths.toFixed(1)} months of expenses and debt payments.`,
+			tone: 'danger',
+			action: 'Prioritize emergency cash before optional purchases.'
+		});
+	} else if (runwayMonths < 3) {
+		insights.push({
+			id: 'runway-building',
+			title: 'Emergency fund needs attention',
+			body: `Cash runway is ${runwayMonths.toFixed(1)} months; many plans target at least 3 months.`,
+			tone: 'caution',
+			action: 'Send extra monthly surplus toward emergency savings.'
+		});
+	}
+
+	if (debtRatio > 36) {
+		insights.push({
+			id: 'debt-pressure',
+			title: 'Debt pressure is high',
+			body: `${debtRatio.toFixed(1)}% of monthly income goes to minimum debt payments.`,
+			tone: 'danger',
+			action: 'Direct extra cash to high-interest debt before lifestyle upgrades.'
+		});
+	}
+
+	if (reviewTotal > 0) {
+		insights.push({
+			id: 'recurring-review',
+			title: 'Recurring charges to review',
+			body: `${formatMoney(reviewTotal)} per month is marked for review or cancellation.`,
+			tone: 'caution',
+			action: 'Cancel one weak subscription and rerun the purchase check.'
+		});
+	}
+
+	if (transactionSummary.discretionaryExpenses > transactionSummary.essentialExpenses * 0.35) {
+		insights.push({
+			id: 'discretionary-spend',
+			title: 'Flexible spending is climbing',
+			body: `${formatMoney(transactionSummary.discretionaryExpenses)} of tracked spending is discretionary.`,
+			tone: 'caution',
+			action: 'Set a weekly cap for dining, shopping, and entertainment.'
+		});
+	}
+
+	return insights.slice(0, 5);
 };
 
 export const calculateDebtPayoffMonths = (debt: Debt): number => {

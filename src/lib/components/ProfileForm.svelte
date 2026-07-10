@@ -7,7 +7,13 @@
 		securityStatus: string;
 		savedAt: string;
 		hasSavedProfile: boolean;
-		onProfileField: (key: keyof Omit<FinancialProfile, 'goals' | 'debts' | 'allowances'>, value: string) => void;
+		onProfileField: (
+			key: keyof Omit<
+				FinancialProfile,
+				'goals' | 'debts' | 'allowances' | 'transactions' | 'recurringItems' | 'assets'
+			>,
+			value: string
+		) => void;
 		onGoalChange: (goal: Goal) => void;
 		onAddGoal: () => void;
 		onRemoveGoal: (id: string) => void;
@@ -129,8 +135,8 @@
 				<span>Local passcode</span>
 				<input
 					type="password"
-					autocomplete="current-password"
-					placeholder="8+ characters"
+					autocomplete="new-password"
+					placeholder="12+ characters"
 					value={profilePasscode}
 					oninput={(event) => onPasscode(event.currentTarget.value)}
 				/>

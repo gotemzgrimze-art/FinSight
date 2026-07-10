@@ -1,14 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import AppNavigation from '$lib/components/AppNavigation.svelte';
 	import AllowanceTracker from '$lib/components/AllowanceTracker.svelte';
-	import Dashboard from '$lib/components/Dashboard.svelte';
 	import DebtTracker from '$lib/components/DebtTracker.svelte';
 	import GlanceOverview from '$lib/components/GlanceOverview.svelte';
+	import MoneyCommandCenter from '$lib/components/MoneyCommandCenter.svelte';
+	import NetWorthTracker from '$lib/components/NetWorthTracker.svelte';
 	import Paywall from '$lib/components/Paywall.svelte';
 	import ProfileForm from '$lib/components/ProfileForm.svelte';
 	import PurchaseChecker from '$lib/components/PurchaseChecker.svelte';
 	import PurchaseResults from '$lib/components/PurchaseResults.svelte';
+	import RecurringTracker from '$lib/components/RecurringTracker.svelte';
 	import StudentDiscount from '$lib/components/StudentDiscount.svelte';
+	import TransactionTracker from '$lib/components/TransactionTracker.svelte';
 	import {
 		calculateAffordabilityVerdict,
 		calculateAllowanceRemaining,
@@ -21,13 +25,16 @@
 	import { demoProfile, productOptions } from '$lib/mockData';
 	import type {
 		Allowance,
+		AssetAccount,
 		Debt,
 		FinancialProfile,
 		Goal,
 		PurchaseAssessment,
 		PurchaseAssessmentOptions,
 		PurchaseInput,
-		SubscriptionTier
+		RecurringItem,
+		SubscriptionTier,
+		Transaction
 	} from '$lib/models';
 	import {
 		clearProfile as clearStoredProfile,
@@ -44,15 +51,23 @@
 		saveSubscriptionState
 	} from '$lib/subscription';
 
-	type ServiceId = 'dashboard' | 'profile' | 'purchase' | 'review';
+	type ServiceId =
+		| 'dashboard'
+		| 'transactions'
+		| 'recurring'
+		| 'wealth'
+		| 'profile'
+		| 'purchase'
+		| 'review';
 
 	type Service = {
 		id: ServiceId;
 		name: string;
+		kicker: string;
+		icon: string;
 	};
 
 	let activeService = $state<ServiceId>('dashboard');
-	let menuOpen = $state(false);
 	let profile = $state<FinancialProfile>(structuredClone(demoProfile));
 	let purchaseInput = $state<PurchaseInput>({
 		name: '',
@@ -73,10 +88,13 @@
 	let subscription = $state({ ...defaultSubscriptionState });
 
 	const services: Service[] = [
-		{ id: 'dashboard', name: 'Financial Dashboard' },
-		{ id: 'profile', name: 'Local Profile' },
-		{ id: 'purchase', name: 'Purchase Check' },
-		{ id: 'review', name: 'Glance Overview' }
+		{ id: 'dashboard', name: 'Dashboard', kicker: 'Today', icon: '$' },
+		{ id: 'transactions', name: 'Transactions', kicker: 'Spending', icon: '#' },
+		{ id: 'recurring', name: 'Recurring', kicker: 'Bills', icon: '@' },
+		{ id: 'wealth', name: 'Net worth', kicker: 'Assets', icon: '%' },
+		{ id: 'purchase', name: 'Purchase check', kicker: 'Decide', icon: '?' },
+		{ id: 'profile', name: 'Profile', kicker: 'Local data', icon: '*' },
+		{ id: 'review', name: 'Overview', kicker: 'Summary', icon: '=' }
 	];
 
 	const selectedProduct = $derived(
@@ -92,15 +110,28 @@
 
 	const selectService = (service: ServiceId) => {
 		activeService = service;
-		menuOpen = false;
 	};
 
 	const updateProfileField = (
-		key: keyof Omit<FinancialProfile, 'goals' | 'debts' | 'allowances'>,
+		key: keyof Omit<
+			FinancialProfile,
+			'goals' | 'debts' | 'allowances' | 'transactions' | 'recurringItems' | 'assets'
+		>,
 		value: string
 	) => {
 		profile = { ...profile, [key]: value };
 	};
+
+	const normalizeProfile = (candidate: FinancialProfile): FinancialProfile => ({
+		...structuredClone(demoProfile),
+		...candidate,
+		goals: candidate.goals ?? [],
+		debts: candidate.debts ?? [],
+		allowances: candidate.allowances ?? [],
+		transactions: candidate.transactions ?? [],
+		recurringItems: candidate.recurringItems ?? [],
+		assets: candidate.assets ?? []
+	});
 
 	const validateProfile = () => {
 		parseMoney(profile.annualSalary, 'annual income');
@@ -125,6 +156,20 @@
 
 		for (const allowance of profile.allowances) {
 			calculateAllowanceRemaining(allowance.limit, allowance.spent);
+		}
+
+		for (const transaction of profile.transactions) {
+			optionalMoney(transaction.amount, `${transaction.merchant || 'transaction'} amount`);
+		}
+
+		for (const item of profile.recurringItems) {
+			optionalMoney(item.amount, `${item.name || 'recurring item'} amount`);
+			const dueDay = optionalMoney(item.dueDay, `${item.name || 'recurring item'} due day`);
+			if (dueDay < 1 || dueDay > 31) throw new Error('recurring due day must be between 1 and 31');
+		}
+
+		for (const asset of profile.assets) {
+			optionalMoney(asset.balance, `${asset.name || 'asset'} balance`);
 		}
 	};
 
@@ -208,6 +253,89 @@
 		profile = { ...profile, allowances: profile.allowances.filter((allowance) => allowance.id !== id) };
 	};
 
+	const updateTransaction = (transaction: Transaction) => {
+		profile = {
+			...profile,
+			transactions: profile.transactions.map((item) => (item.id === transaction.id ? transaction : item))
+		};
+	};
+
+	const addTransaction = () => {
+		profile = {
+			...profile,
+			transactions: [
+				{
+					id: `txn-${crypto.randomUUID()}`,
+					date: new Date().toISOString().slice(0, 10),
+					merchant: 'New transaction',
+					category: 'General',
+					amount: '0',
+					type: 'expense',
+					essential: false
+				},
+				...profile.transactions
+			]
+		};
+	};
+
+	const removeTransaction = (id: string) => {
+		profile = { ...profile, transactions: profile.transactions.filter((transaction) => transaction.id !== id) };
+	};
+
+	const updateRecurring = (item: RecurringItem) => {
+		profile = {
+			...profile,
+			recurringItems: profile.recurringItems.map((current) => (current.id === item.id ? item : current))
+		};
+	};
+
+	const addRecurring = () => {
+		profile = {
+			...profile,
+			recurringItems: [
+				...profile.recurringItems,
+				{
+					id: `rec-${crypto.randomUUID()}`,
+					name: 'New bill',
+					amount: '0',
+					category: 'General',
+					dueDay: '15',
+					status: 'review'
+				}
+			]
+		};
+	};
+
+	const removeRecurring = (id: string) => {
+		profile = { ...profile, recurringItems: profile.recurringItems.filter((item) => item.id !== id) };
+	};
+
+	const updateAsset = (asset: AssetAccount) => {
+		profile = {
+			...profile,
+			assets: profile.assets.map((item) => (item.id === asset.id ? asset : item))
+		};
+	};
+
+	const addAsset = () => {
+		profile = {
+			...profile,
+			assets: [
+				...profile.assets,
+				{
+					id: `asset-${crypto.randomUUID()}`,
+					name: 'New asset',
+					type: 'other',
+					balance: '0'
+				}
+			]
+		};
+	};
+
+	const removeAsset = (id: string) => {
+		profile = { ...profile, assets: profile.assets.filter((asset) => asset.id !== id) };
+	};
+
 	const updatePurchase = (key: keyof PurchaseInput, value: string) => {
 		purchaseInput = { ...purchaseInput, [key]: value };
 	};
@@ -243,8 +371,9 @@
 			validateProfile();
 			await saveStoredProfile(profilePasscode, profile);
 			savedAt = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-			securityStatus = 'Encrypted on this device';
+			securityStatus = 'AES-GCM encrypted on this device';
 			hasSavedProfile = true;
+			profilePasscode = '';
 			validationMessage = '';
 		} catch (error) {
 			securityStatus = error instanceof Error ? error.message : 'Could not save profile';
@@ -253,10 +382,11 @@
 
 	const unlockProfile = async () => {
 		try {
-			profile = await unlockStoredProfile(profilePasscode);
+			profile = normalizeProfile(await unlockStoredProfile(profilePasscode));
 			securityStatus = 'Unlocked for this session';
 			savedAt = 'Saved locally';
 			hasSavedProfile = true;
+			profilePasscode = '';
 		} catch (error) {
 			securityStatus = error instanceof Error ? error.message : 'Passcode did not unlock data';
 		}
@@ -307,44 +437,49 @@
 	<header class="topbar" aria-label="App header">
 		<div>
 			<p class="eyebrow">FinSight</p>
-			<h1>One answer per money question.</h1>
-			<p class="disclaimer">FinSight provides educational planning tools, not financial advice.</p>
-		</div>
-		<div class="menu-wrap">
-			<button
-				class="menu-button"
-				type="button"
-				aria-label="Open services menu"
-				aria-expanded={menuOpen}
-				aria-controls="service-menu"
-				onclick={() => (menuOpen = !menuOpen)}
-			>
-				<span></span>
-				<span></span>
-				<span></span>
-			</button>
-			{#if menuOpen}
-				<nav id="service-menu" class="service-menu" aria-label="Services">
-					{#each services as service}
-						<button
-							type="button"
-							class:active-service={activeService === service.id}
-							onclick={() => selectService(service.id)}
-						>
-							{service.name}
-						</button>
-					{/each}
-				</nav>
-			{/if}
+			<h1>Decide what your money can handle.</h1>
+			<p class="disclaimer">
+				A local-first finance command center for spending, bills, net worth, and purchase decisions.
+			</p>
 		</div>
 	</header>
+
+	<AppNavigation items={services} activeItem={activeService} onSelect={(id) => selectService(id as ServiceId)} />
 
 	{#if validationMessage}
 		<section class="notice-panel" role="status">{validationMessage}</section>
 	{/if}
 
 	{#if activeService === 'dashboard'}
-		<Dashboard {profile} />
+		<MoneyCommandCenter {profile} {subscription} onSelect={(section) => selectService(section as ServiceId)} />
+	{/if}
+
+	{#if activeService === 'transactions'}
+		<TransactionTracker
+			transactions={profile.transactions}
+			onTransactionChange={updateTransaction}
+			onAddTransaction={addTransaction}
+			onRemoveTransaction={removeTransaction}
+		/>
+	{/if}
+
+	{#if activeService === 'recurring'}
+		<RecurringTracker
+			items={profile.recurringItems}
+			onRecurringChange={updateRecurring}
+			onAddRecurring={addRecurring}
+			onRemoveRecurring={removeRecurring}
+		/>
+	{/if}
+
+	{#if activeService === 'wealth'}
+		<NetWorthTracker
+			assets={profile.assets}
+			debts={profile.debts}
+			onAssetChange={updateAsset}
+			onAddAsset={addAsset}
+			onRemoveAsset={removeAsset}
+		/>
 	{/if}
 
 	{#if activeService === 'profile'}

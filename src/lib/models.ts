@@ -39,6 +39,34 @@ export type Allowance = {
 	period: 'weekly' | 'monthly';
 };
 
+export type TransactionType = 'income' | 'expense';
+
+export type Transaction = {
+	id: string;
+	date: string;
+	merchant: string;
+	category: string;
+	amount: string;
+	type: TransactionType;
+	essential: boolean;
+};
+
+export type RecurringItem = {
+	id: string;
+	name: string;
+	amount: string;
+	category: string;
+	dueDay: string;
+	status: 'active' | 'review' | 'cancel';
+};
+
+export type AssetAccount = {
+	id: string;
+	name: string;
+	type: 'cash' | 'investment' | 'retirement' | 'property' | 'other';
+	balance: string;
+};
+
 export type SubscriptionTier = 'free' | 'premium' | 'student';
 
 export type SubscriptionState = {
@@ -57,6 +85,9 @@ export type FinancialProfile = {
 	goals: Goal[];
 	debts: Debt[];
 	allowances: Allowance[];
+	transactions: Transaction[];
+	recurringItems: RecurringItem[];
+	assets: AssetAccount[];
 };
 
 export type PurchaseInput = {
@@ -142,4 +173,12 @@ export type DashboardSnapshot = {
 export type ValidationIssue = {
 	field: string;
 	message: string;
+};
+
+export type MoneyInsight = {
+	id: string;
+	title: string;
+	body: string;
+	tone: StatusTone;
+	action: string;
 };

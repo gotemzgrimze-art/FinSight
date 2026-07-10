@@ -1,4 +1,13 @@
-import type { Allowance, Debt, FinancialProfile, Goal, ProductOption } from '$lib/models';
+import type {
+	Allowance,
+	AssetAccount,
+	Debt,
+	FinancialProfile,
+	Goal,
+	ProductOption,
+	RecurringItem,
+	Transaction
+} from '$lib/models';
 
 export const demoGoals: Goal[] = [
 	{
@@ -51,6 +60,128 @@ export const demoAllowances: Allowance[] = [
 	}
 ];
 
+export const demoTransactions: Transaction[] = [
+	{
+		id: 'txn-payroll',
+		date: '2026-07-01',
+		merchant: 'Payroll deposit',
+		category: 'Income',
+		amount: '5416',
+		type: 'income',
+		essential: true
+	},
+	{
+		id: 'txn-rent',
+		date: '2026-07-02',
+		merchant: 'Rent',
+		category: 'Housing',
+		amount: '1650',
+		type: 'expense',
+		essential: true
+	},
+	{
+		id: 'txn-groceries',
+		date: '2026-07-04',
+		merchant: 'Market basket',
+		category: 'Food',
+		amount: '148',
+		type: 'expense',
+		essential: true
+	},
+	{
+		id: 'txn-coffee',
+		date: '2026-07-05',
+		merchant: 'Coffee run',
+		category: 'Dining',
+		amount: '18',
+		type: 'expense',
+		essential: false
+	},
+	{
+		id: 'txn-streaming',
+		date: '2026-07-07',
+		merchant: 'StreamPlus',
+		category: 'Subscriptions',
+		amount: '19',
+		type: 'expense',
+		essential: false
+	},
+	{
+		id: 'txn-gas',
+		date: '2026-07-08',
+		merchant: 'Fuel stop',
+		category: 'Transportation',
+		amount: '56',
+		type: 'expense',
+		essential: true
+	},
+	{
+		id: 'txn-freelance',
+		date: '2026-07-09',
+		merchant: 'Freelance project',
+		category: 'Income',
+		amount: '420',
+		type: 'income',
+		essential: true
+	}
+];
+
+export const demoRecurringItems: RecurringItem[] = [
+	{
+		id: 'rec-rent',
+		name: 'Rent',
+		amount: '1650',
+		category: 'Housing',
+		dueDay: '2',
+		status: 'active'
+	},
+	{
+		id: 'rec-phone',
+		name: 'Phone plan',
+		amount: '68',
+		category: 'Utilities',
+		dueDay: '12',
+		status: 'active'
+	},
+	{
+		id: 'rec-gym',
+		name: 'Gym membership',
+		amount: '44',
+		category: 'Health',
+		dueDay: '16',
+		status: 'review'
+	},
+	{
+		id: 'rec-stream',
+		name: 'StreamPlus',
+		amount: '19',
+		category: 'Subscriptions',
+		dueDay: '21',
+		status: 'review'
+	}
+];
+
+export const demoAssets: AssetAccount[] = [
+	{
+		id: 'asset-checking',
+		name: 'Checking',
+		type: 'cash',
+		balance: '4250'
+	},
+	{
+		id: 'asset-brokerage',
+		name: 'Brokerage',
+		type: 'investment',
+		balance: '6400'
+	},
+	{
+		id: 'asset-retirement',
+		name: 'Retirement',
+		type: 'retirement',
+		balance: '18400'
+	}
+];
+
 export const demoProfile: FinancialProfile = {
 	creditScore: '720',
 	annualSalary: '65000',
@@ -60,7 +191,10 @@ export const demoProfile: FinancialProfile = {
 	investmentReturnRate: '8.5',
 	goals: demoGoals,
 	debts: demoDebts,
-	allowances: demoAllowances
+	allowances: demoAllowances,
+	transactions: demoTransactions,
+	recurringItems: demoRecurringItems,
+	assets: demoAssets
 };
 
 export const productOptions: ProductOption[] = [
