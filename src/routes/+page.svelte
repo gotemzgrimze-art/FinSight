@@ -371,8 +371,9 @@
 			validateProfile();
 			await saveStoredProfile(profilePasscode, profile);
 			savedAt = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-			securityStatus = 'Encrypted on this device';
+			securityStatus = 'AES-GCM encrypted on this device';
 			hasSavedProfile = true;
+			profilePasscode = '';
 			validationMessage = '';
 		} catch (error) {
 			securityStatus = error instanceof Error ? error.message : 'Could not save profile';
@@ -385,6 +386,7 @@
 			securityStatus = 'Unlocked for this session';
 			savedAt = 'Saved locally';
 			hasSavedProfile = true;
+			profilePasscode = '';
 		} catch (error) {
 			securityStatus = error instanceof Error ? error.message : 'Passcode did not unlock data';
 		}
