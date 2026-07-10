@@ -3,17 +3,25 @@ import {
 	calculateAffordabilityVerdict,
 	calculateAllowanceRemaining,
 	calculateAllowanceUsagePercent,
+	calculateAssetTotal,
 	calculateDebtPayoffMonths,
+	calculateDebtBalance,
 	calculateDebtRatio,
 	calculateFutureValue,
 	calculateGoalDelayMonths,
 	calculateGoalDelaysForPurchase,
+	calculateMonthlyPlan,
 	calculateMonthlyIncome,
 	calculateMonthlyLeftover,
+	calculateNetWorth,
 	calculatePurchaseWorkHours,
+	calculateRecurringMonthlyTotal,
+	calculateRecurringReviewTotal,
 	calculateRunwayMonths,
 	calculateSafeDailyAllowanceSpend,
 	calculateSafeDailySpend,
+	calculateTransactionSummary,
+	generateMoneyInsights,
 	parseMoney
 } from '$lib/calculations';
 import { demoProfile, productOptions } from '$lib/mockData';
@@ -149,7 +157,36 @@ describe('calculations', () => {
 	});
 
 	it('calculates future value with a custom return rate', () => {
-		expect(calculateFutureValue(1500, 0.085, 15)).toBeCloseTo(5099.92, 1);
+		expect(calculateFutureValue(1500, 0.085, 15)).toBeCloseTo(5099.61, 1);
+	});
+
+	it('summarizes transactions by type and category', () => {
+		const summary = calculateTransactionSummary(demoProfile.transactions);
+
+		expect(summary.income).toBe(5836);
+		expect(summary.expenses).toBe(1891);
+		expect(summary.net).toBe(3945);
+		expect(summary.topCategories[0].category).toBe('Housing');
+	});
+
+	it('calculates recurring review pressure', () => {
+		expect(calculateRecurringMonthlyTotal(demoProfile.recurringItems)).toBe(1781);
+		expect(calculateRecurringReviewTotal(demoProfile.recurringItems)).toBe(63);
+	});
+
+	it('calculates net worth from assets and debt balances', () => {
+		expect(calculateAssetTotal(demoProfile.assets)).toBe(29050);
+		expect(calculateDebtBalance(demoProfile.debts)).toBe(10000);
+		expect(calculateNetWorth(demoProfile.assets, demoProfile.debts)).toBe(19050);
+	});
+
+	it('creates a monthly plan and insights from the full profile', () => {
+		const plan = calculateMonthlyPlan(demoProfile);
+		const insights = generateMoneyInsights(demoProfile);
+
+		expect(plan.goalContributions).toBe(670);
+		expect(plan.leftover).toBeCloseTo(1576.66, 1);
+		expect(insights.length).toBeGreaterThan(0);
 	});
 
 	it('handles affordability verdict edge cases', () => {

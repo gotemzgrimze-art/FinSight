@@ -7,7 +7,13 @@
 		securityStatus: string;
 		savedAt: string;
 		hasSavedProfile: boolean;
-		onProfileField: (key: keyof Omit<FinancialProfile, 'goals' | 'debts' | 'allowances'>, value: string) => void;
+		onProfileField: (
+			key: keyof Omit<
+				FinancialProfile,
+				'goals' | 'debts' | 'allowances' | 'transactions' | 'recurringItems' | 'assets'
+			>,
+			value: string
+		) => void;
 		onGoalChange: (goal: Goal) => void;
 		onAddGoal: () => void;
 		onRemoveGoal: (id: string) => void;
