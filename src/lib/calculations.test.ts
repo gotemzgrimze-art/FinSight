@@ -149,7 +149,7 @@ describe('calculations', () => {
 	});
 
 	it('calculates future value with a custom return rate', () => {
-		expect(calculateFutureValue(1500, 0.085, 15)).toBeCloseTo(5099.92, 1);
+		expect(calculateFutureValue(1500, 0.085, 15)).toBeCloseTo(5099.61, 1);
 	});
 
 	it('handles affordability verdict edge cases', () => {
