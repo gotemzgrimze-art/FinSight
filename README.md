@@ -1,130 +1,89 @@
 # FinSight
 
-FinSight is a SvelteKit + TypeScript front-end MVP for purchase decision planning. It helps a user compare a purchase against cash balance, income, debt obligations, savings goals, allowance limits, work-hours cost, and investment opportunity cost.
+FinSight is a SvelteKit financial decision-support application. It calculates and explains the likely impact of a purchase using cash, income, expenses, debt, goals, emergency reserves, transactions, and cash-flow forecasts.
 
-FinSight provides educational planning tools, not financial advice.
+FinSight provides educational planning tools, not financial advice. It is not a bank and does not move money.
 
-## Tech stack
+## Stack
 
-- SvelteKit
-- Svelte 5
-- TypeScript
-- Vite
-- Vitest
-- Tailwind CSS plugin setup
-- Browser Web Crypto API for local encrypted profile storage
+- SvelteKit 2, Svelte 5, TypeScript, Vite
+- Better Auth for email/password auth, email verification, password reset, secure sessions, admin role foundation, and MFA architecture
+- Drizzle ORM with PostgreSQL schema and migrations
+- Vitest for domain/security validation tests
+- Integer minor-unit money representation
+- SvelteKit Node adapter for backend-capable production builds
 
-## Project structure
-
-```text
-src/
-  routes/
-    +layout.svelte          App layout and global stylesheet import
-    +page.svelte            Main app shell, navigation, state, validation, and component wiring
-    layout.css              Minimal spreadsheet-inspired UI styles
-  lib/
-    models.ts               Shared TypeScript models
-    calculations.ts         Financial calculation engine
-    calculations.test.ts    Vitest tests for calculation behavior
-    profileStorage.ts       Local encrypted profile save/unlock/clear helpers
-    mockData.ts             Demo profile, goals, debts, allowances, and product options
-    subscription.ts         Mock subscription limits and local usage persistence
-    components/
-      Dashboard.svelte
-      ProfileForm.svelte
-      PurchaseChecker.svelte
-      PurchaseResults.svelte
-      GlanceOverview.svelte
-      DebtTracker.svelte
-      AllowanceTracker.svelte
-      Paywall.svelte
-      StudentDiscount.svelte
-```
-
-## Setup
-
-Install dependencies:
+## Local Setup
 
 ```sh
 pnpm install
-```
-
-Run the dev server:
-
-```sh
+cp .env.example .env
+pnpm run db:migrate
 pnpm run dev
 ```
 
-Run type and Svelte checks:
+Without `DATABASE_URL`, the app can build and display clearly labeled synthetic demo financial data, but onboarding and persistent financial storage are disabled.
 
-```sh
-pnpm run check
-```
+## Environment Variables
 
-Build for production:
+See `.env.example`.
 
-```sh
-pnpm run build
-```
+Required before production:
 
-Run tests:
+- `DATABASE_URL`
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_URL`
+- Real transactional email provider configuration
+
+## Routes
+
+- Public: `/`, `/signup`, `/login`, `/verify-email`, `/forgot-password`, `/reset-password`
+- Authenticated: `/dashboard`, `/onboarding`, `/cash-flow`, `/transactions`, `/purchase-check`, `/bank/connect`
+- Settings: `/settings`, `/settings/security`, `/settings/privacy`
+
+## Database
+
+The schema lives in `src/lib/server/db/schema.ts`; migration SQL lives in `drizzle/0000_initial_finsight_platform.sql`.
+
+Financial records are keyed by `user_id` and repository queries are scoped to the authenticated user. Tables include auth tables plus profiles, financial accounts, income sources, expenses, debts, goals, transactions, purchase checks, and audit events.
+
+## Financial Engine
+
+New deterministic engine code lives in:
+
+- `src/lib/money.ts`
+- `src/lib/finance/cashFlow.ts`
+- `src/lib/finance/purchaseEngine.ts`
+
+Money is stored as integer minor units, for example `$1,499.99` is `{ amountMinor: 149999, currency: "USD" }`.
+
+## Bank Integrations
+
+Bank connection code uses a `BankDataProvider` interface in `src/lib/server/bank/providers.ts`. The current provider is mock-only, read-only, and clearly labeled. Do not treat it as a real bank connection.
+
+## Security Notes
+
+- Passwords are handled by Better Auth, not by FinSight application code.
+- Sessions use server-side auth APIs and HttpOnly cookie configuration.
+- Sensitive financial routes require authentication and verified email.
+- Financial queries must always include authenticated `userId`.
+- `.env` must never contain committed secrets.
+
+See `docs/SECURITY.md` for the production hardening checklist.
+
+## Test Commands
 
 ```sh
 pnpm test
+pnpm run check
+pnpm run build
 ```
 
-## Current features
+## Known Limitations
 
-- Dynamic dashboard based on the local financial profile
-- Editable profile fields: income, bank balance, expenses, work hours, and investment return assumption
-- Editable savings goals with progress and purchase-delay impact
-- Editable debt list with payoff estimates
-- Editable weekly/monthly allowances with remaining balance, usage percent, and safe daily allowance spend
-- Purchase checker with rule-based affordability verdict
-- Purchase results with pros, cons, alternatives, work-hours impact, goal delay, and investment opportunity cost
-- Mock free, premium, and student subscription tiers
-- Local monthly purchase-check usage persistence for mock subscriptions
-- Encrypted local profile storage using PBKDF2 and AES-GCM
-- Calculation tests with Vitest
-
-## Mocked features
-
-- Subscription entitlements are local mock state only
-- Student discount verification is a local button/state toggle
-- AI-style insights are deterministic rules in `src/lib/calculations.ts`
-- Product categories are static demo data
-- Forecast limits are front-end mock rules
-
-## Not implemented
-
-- Bank integrations
-- Plaid
-- Real AI or LLM calls
-- Real payments
-- Real subscription provider
-- Real student verification
-- Backend authentication
-- Backend data storage
-- Analytics
-- White-label mode
-- Admin portal
-- Swift/iOS app
-
-## Known limitations
-
-- `src/routes/+page.svelte` still owns much of the app orchestration and should eventually be split into smaller state helpers.
-- The dashboard depends on valid local profile data and shows setup warnings when required inputs are missing.
-- Subscription usage is persisted only in browser `localStorage`.
-- Profile encryption is local-device only and has no account recovery.
-- Purchase alternatives use configurable but simple assumptions, not a full cash-flow simulator.
-- No component or end-to-end tests are currently included.
-- No production privacy, compliance, or security review has been completed.
-
-## Roadmap
-
-1. Verify the app in a Node + pnpm environment with `pnpm run check`, `pnpm run build`, and `pnpm test`.
-2. Add component tests for profile editing, allowance editing, and purchase checks.
-3. Split page-level state and validation out of `+page.svelte`.
-4. Add explicit purchase-impact timelines for goals and debts.
-5. Improve local storage migration/versioning.
-6. Add production-ready legal, privacy, and accessibility review before any public launch.
+- Transactional email is console-only unless configured.
+- MFA UI is architectural/readiness level; full enrollment UX still needs provider-specific implementation.
+- Bank provider is mock-only.
+- Analytics is a privacy-conscious abstraction, not a production analytics integration.
+- Account deletion, legal copy, retention rules, and compliance review are not complete.
+- The legacy local MVP components remain in the repo but should be retired after data migration UX is complete.
