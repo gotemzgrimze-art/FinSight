@@ -13,6 +13,7 @@ FinSight provides educational planning tools, not financial advice.
 - Vitest
 - Tailwind CSS plugin setup
 - Browser Web Crypto API for local encrypted profile storage
+- Supabase Auth for email/password accounts and a username profile table
 
 ## Project structure
 
@@ -42,6 +43,9 @@ src/
 ```
 
 ## Setup
+
+For account creation, email confirmation, recovery, database migration and legal
+publication settings, see [Authentication setup](docs/auth-setup.md).
 
 Install dependencies:
 
@@ -75,6 +79,7 @@ pnpm test
 
 ## Current features
 
+- Email/password accounts, confirmation and recovery through Supabase Auth
 - Dynamic dashboard based on the local financial profile
 - Editable profile fields: income, bank balance, expenses, work hours, and investment return assumption
 - Editable savings goals with progress and purchase-delay impact
@@ -103,8 +108,7 @@ pnpm test
 - Real payments
 - Real subscription provider
 - Real student verification
-- Backend authentication
-- Backend data storage
+- Backend storage/synchronization of financial profiles
 - Analytics
 - White-label mode
 - Admin portal
@@ -117,7 +121,7 @@ pnpm test
 - Subscription usage is persisted only in browser `localStorage`.
 - Profile encryption is local-device only and has no account recovery.
 - Purchase alternatives use configurable but simple assumptions, not a full cash-flow simulator.
-- No component or end-to-end tests are currently included.
+- Authentication has desktop/mobile browser tests; finance component tests are not yet included.
 - No production privacy, compliance, or security review has been completed.
 
 ## Roadmap
