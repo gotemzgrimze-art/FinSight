@@ -3,7 +3,7 @@ import { validateAuth } from './validation';
 
 const form = (overrides: Record<string, string> = {}) => {
 	const data = new FormData();
-	for (const [key, value] of Object.entries({ email: ' Person@Example.com ', username: ' Mixed_Name ', password: ' password ', confirmPassword: ' password ', terms: 'on', ...overrides })) data.set(key, value);
+	for (const [key, value] of Object.entries({ email: ' Person@Example.com ', username: ' Mixed_Name ', password: ' password ', confirmPassword: ' password ', terms: 'on', privacy: 'on', ...overrides })) data.set(key, value);
 	return data;
 };
 

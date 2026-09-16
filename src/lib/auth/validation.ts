@@ -1,5 +1,5 @@
 export type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
-export type FieldErrors = Partial<Record<'email' | 'username' | 'password' | 'confirmPassword' | 'terms', string>>;
+export type FieldErrors = Partial<Record<'email' | 'username' | 'password' | 'confirmPassword' | 'terms' | 'privacy', string>>;
 export type AuthResult = {
 	errors?: FieldErrors;
 	message?: string;
@@ -32,5 +32,6 @@ export function validateAuth(mode: AuthMode, data: FormData) {
 		if (password !== confirmPassword) errors.confirmPassword = 'Passwords must match.';
 	}
 	if (mode === 'signup' && read('terms') !== 'on') errors.terms = 'Accept the Terms of Service to continue.';
+	if (mode === 'signup' && read('privacy') !== 'on') errors.privacy = 'Acknowledge the Privacy Policy to continue.';
 	return { email, username, password, errors };
 }

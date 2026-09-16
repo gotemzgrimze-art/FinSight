@@ -12,7 +12,7 @@ const auth = {
 };
 const event = (overrides: Record<string, string> = {}) => {
 	const body = new FormData();
-	for (const [key, value] of Object.entries({ email: ' PERSON@example.com ', username: ' Person ', password: 'secret123', confirmPassword: 'secret123', terms: 'on', ...overrides })) body.set(key, value);
+	for (const [key, value] of Object.entries({ email: ' PERSON@example.com ', username: ' Person ', password: 'secret123', confirmPassword: 'secret123', terms: 'on', privacy: 'on', ...overrides })) body.set(key, value);
 	return { request: new Request('https://finsight.test/signup', { method: 'POST', body }), locals: { supabase: { auth } }, url: new URL('https://finsight.test/signup') } as unknown as RequestEvent<Record<string, never>, '/auth/confirm'>;
 };
 beforeEach(() => vi.resetAllMocks());
@@ -28,7 +28,7 @@ describe('server authentication boundary', () => {
 		auth.signUp.mockResolvedValue({ data: {}, error: null });
 		await authAction('signup')(event());
 		expect(auth.signUp).toHaveBeenCalledWith({ email: 'person@example.com', password: 'secret123', options: {
-			data: { username: 'person', terms_accepted: true, terms_version: '2026-09-15' },
+			data: { username: 'person', terms_accepted: true, terms_version: '2026-09-15', privacy_accepted: true, privacy_version: '2026-09-15' },
 			emailRedirectTo: 'https://finsight.test/auth/confirm'
 		} });
 	});

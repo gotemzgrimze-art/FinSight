@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 const db = new PGlite();
 const first = '11111111-1111-4111-8111-111111111111';
 const second = '22222222-2222-4222-8222-222222222222';
-const metadata = (username: string, extra = {}) => JSON.stringify({ username, terms_accepted: true, terms_version: '2026-09-15', ...extra });
+const metadata = (username: string, extra = {}) => JSON.stringify({ username, terms_accepted: true, terms_version: '2026-09-15', privacy_accepted: true, privacy_version: '2026-09-15', ...extra });
 const insert = (id: string, data: string) => db.query('insert into auth.users (id, raw_user_meta_data) values ($1, $2::jsonb)', [id, data]);
 
 beforeAll(async () => {
@@ -28,7 +28,7 @@ describe('account profile migration in PostgreSQL', () => {
 		await insert(first, metadata(' Mixed_Name '));
 		const { rows } = await db.query('select * from public.account_profiles');
 		expect(rows).toEqual([expect.objectContaining({ id: first, username: 'mixed_name', terms_version: '2026-09-15', terms_accepted_at: expect.any(Date) })]);
-		expect(Object.keys(rows[0] as object).sort()).toEqual(['created_at', 'id', 'terms_accepted_at', 'terms_version', 'username']);
+		expect(Object.keys(rows[0] as object).sort()).toEqual(['created_at', 'id', 'privacy_accepted_at', 'privacy_version', 'terms_accepted_at', 'terms_version', 'username']);
 	});
 	it('rolls back auth creation for a case-insensitive duplicate', async () => {
 		await expect(insert(second, metadata('MIXED_NAME'))).rejects.toThrow(/unique/i);

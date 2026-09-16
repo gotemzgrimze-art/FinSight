@@ -1,0 +1,6 @@
+import { fail, redirect } from '@sveltejs/kit';
+import { requireUser } from '$lib/server/require-user';
+import { getAdminClient } from '$lib/server/admin';
+import type { Actions, PageServerLoad } from './$types';
+export const load: PageServerLoad = async (event) => { const user = await requireUser(event); const { data: profile } = await event.locals.supabase!.from('account_profiles').select('username,terms_version,terms_accepted_at,privacy_version,privacy_accepted_at').eq('id', user.id).maybeSingle(); return { user: { email: user.email, createdAt: user.created_at }, profile }; };
+export const actions: Actions = { delete: async (event) => { const user = await requireUser(event); if ((await event.request.formData()).get('confirm') !== 'DELETE') return fail(400, { message: 'Type DELETE to confirm account deletion.' }); const admin = getAdminClient(); if (!admin) return fail(503, { message: 'Account deletion is not configured yet.' }); const { error } = await admin.auth.admin.deleteUser(user.id); if (error) return fail(500, { message: 'We could not delete your account. Please contact support.' }); await event.locals.supabase?.auth.signOut({ scope: 'local' }); redirect(303, '/login?deleted=1'); } };

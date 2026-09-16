@@ -13,6 +13,8 @@ Copy `.env.example` to `.env` and set these values in your hosting environment t
 - `PUBLIC_SUPABASE_URL`: your Supabase project URL.
 - `PUBLIC_SUPABASE_PUBLISHABLE_KEY`: the publishable key from the project Connect
   dialog. Do **not** use a service-role or secret key.
+- `SUPABASE_SERVICE_ROLE_KEY`: server-only key used only by the authenticated account
+  deletion action. Never expose it through `PUBLIC_` variables or browser code.
 - Legal settings described in section 4.
 
 Never commit `.env`. All `PUBLIC_` settings are public information. Supabase service
@@ -27,9 +29,10 @@ Apply it before accepting any signups.
 The trigger atomically creates an account profile as part of an `auth.users` insert.
 The unique constraint and normalization reject duplicate usernames, including
 simultaneous requests. Failed profile creation rolls back the auth user insert.
-The table stores only user ID, username, Terms version/acceptance timestamp and
-creation timestamp. Passwords and password hashes stay in Supabase Auth. Clients
-can only read their own profile; they cannot insert, update or delete profile rows.
+The tables store user ID, username, Terms/Privacy versions and acceptance timestamps,
+plus immutable agreement history. Passwords and password hashes stay in Supabase Auth.
+Clients can only read their own profile and agreement rows; they cannot insert, update
+or delete those rows.
 
 In Supabase Authentication:
 
@@ -121,6 +124,10 @@ Legal reference material used for these drafts:
 - `/forgot-email`: safe recovery guidance without revealing an email by username.
 - `/reset-password`: verifies the user server-side before updating a password.
 - `/logout`: POST only; clears the current session, retaining device-local planner data.
+- `/dashboard` and `/settings`: server-protected routes that call `auth.getUser()`;
+  settings shows the authenticated profile and offers deliberate `DELETE` confirmation.
+  Deletion uses the server-only service-role client with the verified authenticated ID,
+  then signs out and redirects. The service-role client is never imported by client code.
 - Account deletion: handle verified requests through the published contact address;
   deleting the user in Supabase Auth cascades to the account profile. Self-service
   account deletion and username changes are not implemented.

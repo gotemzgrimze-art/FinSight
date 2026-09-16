@@ -69,6 +69,10 @@
 					<p id="username-hint" class="hint">3–30 letters, numbers or underscores. Saved in lowercase.</p>
 					<p id="username-error" class="error">{errors.username ?? ''}</p>
 				</div>
+				<div class="field">
+					<div class="terms-row"><input id="privacy" name="privacy" type="checkbox" required aria-invalid={Boolean(errors.privacy)} aria-describedby="privacy-error" /><label for="privacy">I acknowledge the <a class="auth-link" href={privacyUrl ?? '/privacy'} target="_blank" rel="noopener noreferrer">Privacy Policy<span class="sr-only"> (opens in a new tab)</span></a>.</label></div>
+					<p id="privacy-error" class="error">{errors.privacy ?? ''}</p>
+				</div>
 			{/if}
 			{#if !reset}
 				<div class="field">

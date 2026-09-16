@@ -15,7 +15,7 @@ export function authAction(mode: AuthMode) {
 		if (mode === 'signup') {
 			try {
 				await auth.signUp({ email, password, options: {
-					data: { username, terms_accepted: true, terms_version: TERMS_VERSION },
+					data: { username, terms_accepted: true, terms_version: TERMS_VERSION, privacy_accepted: true, privacy_version: TERMS_VERSION },
 					emailRedirectTo: `${url.origin}/auth/confirm`
 				} });
 			} catch { /* Same response for duplicates, provider errors and transport failures. */ }
