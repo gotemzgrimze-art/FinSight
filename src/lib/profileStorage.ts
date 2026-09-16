@@ -64,7 +64,7 @@ const decryptProfile = async (passcode: string, payload: SecurePayload): Promise
 	const decryptedData = await crypto.subtle.decrypt(
 		{ name: 'AES-GCM', iv: toArrayBuffer(iv) },
 		key,
-		decodeBytes(payload.data)
+		toArrayBuffer(decodeBytes(payload.data))
 	);
 
 	return JSON.parse(new TextDecoder().decode(decryptedData)) as FinancialProfile;

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { PageProps } from './$types';
+	let { data }: PageProps = $props();
 	import AllowanceTracker from '$lib/components/AllowanceTracker.svelte';
 	import Dashboard from '$lib/components/Dashboard.svelte';
 	import DebtTracker from '$lib/components/DebtTracker.svelte';
@@ -309,6 +311,15 @@
 			<p class="eyebrow">FinSight</p>
 			<h1>One answer per money question.</h1>
 			<p class="disclaimer">FinSight provides educational planning tools, not financial advice.</p>
+			<nav class="account-navigation" aria-label="Account">
+				{#if data.account}
+					<span>Signed in as {data.account.email}</span>
+					<form method="POST" action="/logout"><button type="submit">Sign Out</button></form>
+				{:else}
+					<a href="/login">Sign In</a>
+					<a href="/signup">Create Account</a>
+				{/if}
+			</nav>
 		</div>
 		<div class="menu-wrap">
 			<button
@@ -415,5 +426,15 @@
 
 	<footer class="app-footer">
 		FinSight provides educational planning tools, not financial advice.
+		<a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Policy</a>
 	</footer>
 </main>
+
+<style>
+	.account-navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; font-size: .85rem; }
+	.account-navigation span { overflow-wrap: anywhere; }
+	.account-navigation a, .account-navigation button { display: inline-block; min-height: 44px; padding: 10px 14px; border: 1px solid #d2d8e2; border-radius: 8px; background: white; color: #075f42; font-weight: 700; }
+	.account-navigation form { margin: 0; }
+	.account-navigation a:focus-visible, .account-navigation button:focus-visible, .app-footer a:focus-visible { outline: 3px solid #11845b; outline-offset: 3px; }
+	.app-footer a { text-decoration: underline; text-underline-offset: 3px; }
+</style>
